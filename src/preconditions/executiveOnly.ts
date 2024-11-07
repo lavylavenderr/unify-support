@@ -21,7 +21,7 @@ export class StaffMemberOnlyPrecondition extends AllFlowsPrecondition {
 
 		return guildMember.roles.cache.some((role) => roleIds.includes(role.id))
 			? this.ok()
-			: this.error({ message: 'Sorry, you only executive staff can run this.' });
+			: this.error({ message: 'Sorry, only executive staff can run this.' });
 	}
 }
 

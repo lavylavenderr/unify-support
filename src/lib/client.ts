@@ -5,9 +5,8 @@ import { PrismaClient } from '@prisma/client';
 import { join } from 'path';
 
 import "@sapphire/plugin-api/register"
-import '@kaname-png/plugin-subcommands-advanced/register';
 
-export class AustrianBot extends SapphireClient {
+export class UnifyBot extends SapphireClient {
 	private rootData = getRootData();
 
 	public constructor() {
