@@ -25,7 +25,7 @@ export class ClaimCommand extends Command {
 					return message.reply({
 						embeds: [
 							new EmbedBuilder()
-								.setDescription('Oops, this ticket has already been claimed. If you wish to override this, inform management.')
+								.setDescription('Oops, this ticket has already been claimed. If you wish to override this, inform a executive.')
 								.setColor(ticketEmbedColor)
 						]
 					});
