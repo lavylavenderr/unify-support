@@ -12,7 +12,7 @@ import { ticketEmbedColor } from '../lib/constants';
 export class ReplyCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {
 		const messageChannel = message.channel as GuildTextBasedChannel;
-        const noPrefix = await args.rest('string')
+        const noPrefix = await args.rest('string').catch(() => null);
 		const openTicket = await this.container.prisma.ticket.findFirst({
 			where: {
 				closed: false,

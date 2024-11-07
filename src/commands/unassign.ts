@@ -4,11 +4,11 @@ import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { ticketCategory, ticketEmbedColor } from '../lib/constants';
 
 @ApplyOptions<Command.Options>({
-	name: 'claim',
-	description: 'Claim a ticket.',
-	preconditions: ['customerServiceOnly']
+	name: 'unassign',
+	description: 'Unassign a ticket from someone.',
+	preconditions: ['executiveOnly']
 })
-export class ClaimCommand extends Command {
+export class UnassignCommand extends Command {
 	public override async messageRun(message: Message) {
 		const messageChannel = message.channel as TextChannel;
 
@@ -21,28 +21,33 @@ export class ClaimCommand extends Command {
 			});
 
 			if (openTicket) {
-				if (openTicket.claimedBy)
+				if (openTicket.claimedBy) {
+					await this.container.prisma.ticket.update({
+						where: { id: openTicket.id },
+						data: { claimedBy: null }
+					});
+
+					messageChannel.permissionOverwrites.delete(openTicket.claimedBy);
+					messageChannel.permissionOverwrites.create(message.guildId!, { SendMessages: true });
+
 					return message.reply({
 						embeds: [
 							new EmbedBuilder()
-								.setDescription('Oops, this ticket has already been claimed. If you wish to override this, inform a executive.')
+								.setDescription('Okay, this ticket has been unassigned from <@' + openTicket.claimedBy + '> as requested.')
 								.setColor(ticketEmbedColor)
 						]
 					});
-
-				messageChannel.permissionOverwrites.edit(message.author.id, { SendMessages: true, ViewChannel: true });
-				messageChannel.permissionOverwrites.edit(message.guild!.id, { SendMessages: false });
-
-				await this.container.prisma.ticket.update({
-					where: { id: openTicket.id },
-					data: { claimedBy: message.author.id }
-				});
-
-				return message.reply({
-					embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription(`<@${message.author.id}> has claimed this ticket.`)]
-				});
+				} else {
+					return message.reply({
+						embeds: [
+							new EmbedBuilder()
+								.setDescription('This ticket has not been claimed, therefore you cannot unassign it.')
+								.setColor(ticketEmbedColor)
+						]
+					});
+				}
 			} else {
-				message.reply({
+				return message.reply({
 					embeds: [
 						new EmbedBuilder()
 							.setColor(ticketEmbedColor)

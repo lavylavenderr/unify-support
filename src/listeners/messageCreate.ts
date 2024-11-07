@@ -10,7 +10,9 @@ import {
 	StringSelectMenuBuilder,
 	StringSelectMenuOptionBuilder
 } from 'discord.js';
-import { ticketEmbedColor, mainGuild, ticketDepartments, ticketCategory } from '../lib/constants';
+import { ticketEmbedColor, mainGuild, ticketDepartments, ticketCategory, serviceProviderRoleId, publicRelationsRoleId } from '../lib/constants';
+import { tasks } from '@trigger.dev/sdk/v3';
+import { closeTicketTask } from '../trigger/closeTicket';
 
 @ApplyOptions<Listener.Options>({
 	event: Events.MessageCreate
@@ -107,6 +109,7 @@ export class messageCreateEvent extends Listener {
 					.awaitMessageComponent({ filter: collectorFilter, componentType: ComponentType.StringSelect, time: 20000 })
 					.then(async (collected) => {
 						let categoryName;
+						let categoryType: 'Livery' | 'ThreeDLogo' | 'PR' | 'Other' | 'Uniform';
 						let userName = message.author.globalName;
 
 						const pastTickets = await this.container.prisma.ticket.findMany({
@@ -116,18 +119,23 @@ export class messageCreateEvent extends Listener {
 						switch (collected.values[0]) {
 							case 'Liveries':
 								categoryName = `liv-${message.author.globalName}`;
+								categoryType = 'Livery';
 								break;
 							case '3D Logos':
 								categoryName = `log-${userName}`;
+								categoryType = 'ThreeDLogo';
 								break;
 							case 'Uniform':
 								categoryName = `uni-${userName}`;
+								categoryType = 'Uniform';
 								break;
 							case 'Public Relations':
 								categoryName = `pr-${userName}`;
+								categoryType = 'PR';
 								break;
 							case 'Other':
 								categoryName = `other-${userName}`;
+								categoryType = 'Other';
 								break;
 						}
 
@@ -138,18 +146,19 @@ export class messageCreateEvent extends Listener {
 							await this.container.prisma.ticket.create({
 								data: {
 									channelId: c.id,
-									author: message.author.id
+									author: message.author.id,
+									category: categoryType
 								}
 							});
 
+							if (categoryType === 'Livery' || categoryType === 'ThreeDLogo' || categoryType === 'Uniform') {
+								c.permissionOverwrites.edit(serviceProviderRoleId, { ViewChannel: true, SendMessages: true });
+							} else if (categoryType === 'PR') {
+								c.permissionOverwrites.edit(publicRelationsRoleId, { ViewChannel: true, SendMessages: true });
+							}
+
 							c.permissionOverwrites.edit('878175903895679027', { ViewChannel: true, SendMessages: true }); // Customer Service
 							c.permissionOverwrites.edit('1289956449040076852', { ViewChannel: true, SendMessages: true }); // Department Head
-
-							if (categoryName!.includes('pr') || categoryName!.includes('other')) {
-								c.permissionOverwrites.edit('1303815721003913277', { ViewChannel: true, SendMessages: true });
-							} else {
-								c.permissionOverwrites.edit('802909560393695232', { ViewChannel: true, SendMessages: true });
-							}
 
 							response.edit({
 								embeds: [
@@ -229,6 +238,18 @@ export class messageCreateEvent extends Listener {
 								.setFooter({ text: 'Unify Support' })
 						]
 					});
+
+					if (snippet.identifier === "anythingelse") {
+						const handle = await tasks.trigger<typeof closeTicketTask>('close-ticket', {
+							ticketId: openTicket.id
+						});
+
+						await this.container.prisma.ticket.update({
+							where: { id: openTicket.id },
+							data: { runId: handle.id }
+						});
+					}
+
 
 					message.delete();
 				}

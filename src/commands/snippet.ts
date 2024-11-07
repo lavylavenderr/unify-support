@@ -1,13 +1,13 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Args, Command } from '@sapphire/framework';
-import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
-import { ticketEmbedColor } from '../lib/constants';
+import { EmbedBuilder, Message } from 'discord.js';
+import { mainGuild, ticketEmbedColor } from '../lib/constants';
 
 @ApplyOptions<Command.Options>({
 	name: 'snippets',
 	aliases: ['snippet', 's'],
 	description: 'Send or view snippets.',
-	preconditions: ['executiveOnly']
+	preconditions: ['staffMemberOnly']
 })
 export class SnippetCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {
@@ -36,75 +36,40 @@ export class SnippetCommand extends Command {
 			const allSnippets = await this.container.prisma.snippet.findMany();
 
 			if (allSnippets.find((x) => x.identifier === sendOrAction)) {
-				const snippet = allSnippets.find((x) => x.identifier === sendOrAction)!;
-				const messageChannel = message.channel as GuildTextBasedChannel;
-				const openTicket = await this.container.prisma.ticket.findFirst({
-					where: {
-						closed: false,
-						channelId: messageChannel.id
-					}
-				});
-
-				if (openTicket) {
-					await this.container.client.users.send(openTicket.author, {
-						embeds: [
-							new EmbedBuilder()
-								.setColor(ticketEmbedColor)
-								.setDescription(snippet.content)
-								.setAuthor({
-									name: `${message.author.globalName} (@${message.author.username})`,
-									iconURL: message.author.avatarURL()!
-								})
-								.setTimestamp()
-								.setFooter({ text: 'Unify Support' })
-						]
-					});
-
-					messageChannel.send({
-						embeds: [
-							new EmbedBuilder()
-								.setColor(ticketEmbedColor)
-								.setDescription(snippet.content)
-								.setAuthor({
-									name: `${message.author.globalName} (@${message.author.username})`,
-									iconURL: message.author.avatarURL()!
-								})
-								.setTimestamp()
-								.setFooter({ text: 'Unify Support' })
-						]
-					});
-
-					message.delete();
-				} else {
-					message.reply({
-						embeds: [
-							new EmbedBuilder().setColor(ticketEmbedColor).setDescription('You cannot run that as this is not a valid modmail ticket.')
-						]
-					});
-				}
-			} else {
-				if (sendOrAction === 'view') {
-					if (!secondArg)
-						return message.reply({
-							embeds: [
-								new EmbedBuilder()
-									.setDescription('Sorry! In order to view a snippet, you need to actually provide the name of it.')
-									.setColor(ticketEmbedColor)
-							]
-						});
-
-					const requestedSnippet = allSnippets.find((x) => x.identifier === secondArg);
-					if (!requestedSnippet)
-						return message.reply({
-							embeds: [new EmbedBuilder().setDescription('Sorry, that snippet does not exist.').setColor(ticketEmbedColor)]
-						});
-
+				if (!sendOrAction)
 					return message.reply({
 						embeds: [
-							new EmbedBuilder().setTitle(`Snippet: ${secondArg}`).setDescription(requestedSnippet.content).setColor(ticketEmbedColor)
+							new EmbedBuilder()
+								.setDescription('Sorry! In order to view a snippet, you need to actually provide the name of it.')
+								.setColor(ticketEmbedColor)
 						]
 					});
-				} else if (sendOrAction === 'add') {
+
+				const requestedSnippet = allSnippets.find((x) => x.identifier === sendOrAction);
+				if (!requestedSnippet)
+					return message.reply({
+						embeds: [new EmbedBuilder().setDescription('Sorry, that snippet does not exist.').setColor(ticketEmbedColor)]
+					});
+
+				return message.reply({
+					embeds: [new EmbedBuilder().setTitle(`Snippet: ${sendOrAction}`).setDescription(requestedSnippet.content).setColor(ticketEmbedColor)]
+				});
+			} else {
+				const guildMember = await (await this.container.client.guilds.fetch(mainGuild)).members.fetch(message.author.id);
+				const roleIds = ['802870322109480991', '873145273415794708', '1271081315357294593', '1289956449040076852'];
+
+
+				if (!guildMember.roles.cache.some((role) => roleIds.includes(role.id))) 
+					return message.reply({
+						embeds: [
+							new EmbedBuilder()
+								.setDescription('Sorry, only executives can manage snippets.')
+								.setColor(ticketEmbedColor)
+						]
+					})
+				
+
+				if (sendOrAction === 'add') {
 					if (!secondArg)
 						return message.reply({
 							embeds: [
@@ -123,7 +88,7 @@ export class SnippetCommand extends Command {
 							]
 						});
 
-					if (secondArg === 'view' || secondArg === 'add' || secondArg === 'delete')
+					if (secondArg === 'edit' || secondArg === 'add' || secondArg === 'delete')
 						return message.reply({
 							embeds: [new EmbedBuilder().setDescription('Sorry! You cannot use that name for a snippet.').setColor(ticketEmbedColor)]
 						});
@@ -160,6 +125,44 @@ export class SnippetCommand extends Command {
 						embeds: [
 							new EmbedBuilder()
 								.setDescription(`The snippet named **${secondArg}** has been deleted as requested.`)
+								.setColor(ticketEmbedColor)
+						]
+					});
+				} else if (sendOrAction === 'edit') {
+					if (!secondArg)
+						return message.reply({
+							embeds: [
+								new EmbedBuilder()
+									.setDescription('Sorry! In order to edit a snippet, you need to actually provide the name of it.')
+									.setColor(ticketEmbedColor)
+							]
+						});
+
+					if (!thirdArg)
+						return message.reply({
+							embeds: [
+								new EmbedBuilder()
+									.setDescription('Sorry! In order to edit a snippet, you need to actually provide the content for it.')
+									.setColor(ticketEmbedColor)
+							]
+						});
+
+					if (secondArg === 'edit' || secondArg === 'add' || secondArg === 'delete')
+						return message.reply({
+							embeds: [new EmbedBuilder().setDescription('Sorry! You cannot use that name for a snippet.').setColor(ticketEmbedColor)]
+						});
+
+					await this.container.prisma.snippet.update({
+						where: { identifier: secondArg },
+						data: {
+							content: thirdArg
+						}
+					});
+
+					return message.reply({
+						embeds: [
+							new EmbedBuilder()
+								.setDescription(`The snippet named **${secondArg}** has been updated as requested.`)
 								.setColor(ticketEmbedColor)
 						]
 					});

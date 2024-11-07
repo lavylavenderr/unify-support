@@ -23,7 +23,7 @@ export class CloseCommand extends Command {
 					channelId: messageChannel.id
 				}
 			});
-			
+
 			if (openTicket) {
 				const confirmbutton = new ButtonBuilder().setCustomId('confirmTicketClose').setLabel('Confirm').setStyle(ButtonStyle.Danger);
 				const cancelbutton = new ButtonBuilder().setCustomId('cancelTicketClose').setLabel('Cancel').setStyle(ButtonStyle.Secondary);
@@ -88,8 +88,13 @@ export class CloseCommand extends Command {
 										},
 										{
 											name: 'Ticket Opener',
-											value: `<@${message.author.id}>`,
+											value: `<@${openTicket.author}>`,
 											inline: true
+										},
+										{
+											name: 'Closed By',
+											value: `<@${message.author.id}>`,
+											inline: false
 										}
 									)
 									.setAuthor({
@@ -97,13 +102,15 @@ export class CloseCommand extends Command {
 										iconURL: ticketOpener.avatarURL()!
 									})
 							],
-							components: [new ActionRowBuilder<ButtonBuilder>().addComponents(
-								new ButtonBuilder()
-									.setLabel('Transcript')
-									.setEmoji('🔗')
-									.setStyle(ButtonStyle.Link)
-									.setURL(`https://storage.lavylavender.com/unify/transcript-${openTicket.id}.html`)
-							)]
+							components: [
+								new ActionRowBuilder<ButtonBuilder>().addComponents(
+									new ButtonBuilder()
+										.setLabel('Transcript')
+										.setEmoji('🔗')
+										.setStyle(ButtonStyle.Link)
+										.setURL(`https://storage.lavylavender.com/unify/transcript-${openTicket.id}.html`)
+								)
+							]
 						});
 
 						message.channel!.delete();
@@ -115,6 +122,7 @@ export class CloseCommand extends Command {
 						});
 					} else {
 						message.delete();
+						confirmMsg.delete();
 					}
 				} catch (e) {
 					console.log(e);

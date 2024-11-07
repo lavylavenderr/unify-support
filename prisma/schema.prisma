@@ -16,10 +16,13 @@ datasource db {
 model Ticket {
   id Int @id @unique @default(autoincrement())
 
-  channelId  String   @unique
+  channelId  String           @unique
   author     String
   subscribed String[]
   claimedBy  String?
+  category   TicketCategories @default(Other)
+
+  runId String? // used for checking if ticket has been scheduled to close
 
   closed Boolean @default(false)
 }
@@ -29,4 +32,12 @@ model Snippet {
 
   identifier String @unique
   content    String
+}
+
+enum TicketCategories {
+  Other
+  PR
+  ThreeDLogo
+  Livery
+  Uniform
 }

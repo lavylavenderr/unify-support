@@ -9,6 +9,11 @@ export const ticketTranscripts = '902863701953101854';
 export const ticketCategory = '802894623705137182';
 export const ticketEmbedColor = '#2b2d31';
 
+export const customerServiceRoleId = '878175903895679027'
+export const serviceProviderRoleId = '802909560393695232'
+export const departmentHeadRoleId = '1289956449040076852';
+export const publicRelationsRoleId = '1303815721003913277';
+
 export const ticketDepartments = [
 	{
 		name: 'Liveries',
