@@ -1,6 +1,7 @@
 import './lib/setup';
 import { UnifyBot } from './lib/client';
 import { env } from './lib/env';
+import "./jobs"
 
 const client = new UnifyBot();
 

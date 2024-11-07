@@ -49,7 +49,7 @@ export class CloseCommand extends Command {
 									new EmbedBuilder()
 										.setColor(ticketEmbedColor)
 										.setDescription(
-											`Thank you for contacting us, and don't hesitate to open a new ticket if you require further support. If you wish to request your transcript, please open another ticket and reference **Ticket #${openTicket.id}** so that they may locate it.`
+											`Thank you for contacting us, and don't hesitate to open a new ticket if you require further support. If you wish to request your transcript, please open another ticket and reference ticket **#${openTicket.id}** so that they may locate it.`
 										)
 								]
 							})

@@ -7,7 +7,8 @@ const envSchema = z.object({
     DISCORD_TOKEN: z.string(),
     DATABASE_URL: z.string(),
     DIGITALOCEAN_SPACEKEY: z.string(),
-    DIGITALOCEAN_SPACEKEY_PRIV: z.string()
+    DIGITALOCEAN_SPACEKEY_PRIV: z.string(),
+    CRONITOR_KEY: z.string()
 });
 
 type env = z.infer<typeof envSchema>

@@ -22,7 +22,7 @@ model Ticket {
   claimedBy  String?
   category   TicketCategories @default(Other)
 
-  runId String? // used for checking if ticket has been scheduled to close
+  scheduledCloseTime DateTime?
 
   closed Boolean @default(false)
 }

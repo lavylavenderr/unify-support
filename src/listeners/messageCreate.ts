@@ -11,8 +11,7 @@ import {
 	StringSelectMenuOptionBuilder
 } from 'discord.js';
 import { ticketEmbedColor, mainGuild, ticketDepartments, ticketCategory, serviceProviderRoleId, publicRelationsRoleId } from '../lib/constants';
-import { tasks } from '@trigger.dev/sdk/v3';
-import { closeTicketTask } from '../trigger/closeTicket';
+import { add } from 'date-fns';
 
 @ApplyOptions<Listener.Options>({
 	event: Events.MessageCreate
@@ -35,6 +34,12 @@ export class messageCreateEvent extends Listener {
 				const ticketChannel = (await this.container.client.channels.cache.get(openTicket?.channelId ?? '1')) as GuildTextBasedChannel;
 
 				if (ticketChannel) {
+					if (openTicket.scheduledCloseTime)
+						await this.container.prisma.ticket.update({
+							where: { id: openTicket.id },
+							data: { scheduledCloseTime: null }
+						});
+
 					ticketChannel
 						.send({
 							embeds: [
@@ -239,17 +244,12 @@ export class messageCreateEvent extends Listener {
 						]
 					});
 
-					if (snippet.identifier === "anythingelse") {
-						const handle = await tasks.trigger<typeof closeTicketTask>('close-ticket', {
-							ticketId: openTicket.id
-						});
-
+					if (snippet.identifier === 'anythingelse') {
 						await this.container.prisma.ticket.update({
 							where: { id: openTicket.id },
-							data: { runId: handle.id }
+							data: { scheduledCloseTime: add(new Date(), { hours: 6 }) }
 						});
 					}
-
 
 					message.delete();
 				}
