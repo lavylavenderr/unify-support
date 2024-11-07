@@ -6,7 +6,8 @@ import { ticketEmbedColor } from '../lib/constants';
 @ApplyOptions<Command.Options>({
 	name: 'snippets',
 	aliases: ['snippet', 's'],
-	description: 'Send or view snippets.'
+	description: 'Send or view snippets.',
+	preconditions: ['executiveOnly']
 })
 export class SnippetCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {
@@ -120,6 +121,11 @@ export class SnippetCommand extends Command {
 									.setDescription('Sorry! In order to add a snippet, you need to actually provide the content for it.')
 									.setColor(ticketEmbedColor)
 							]
+						});
+
+					if (secondArg === 'view' || secondArg === 'add' || secondArg === 'delete')
+						return message.reply({
+							embeds: [new EmbedBuilder().setDescription('Sorry! You cannot use that name for a snippet.').setColor(ticketEmbedColor)]
 						});
 
 					await this.container.prisma.snippet.create({

@@ -1,56 +1,56 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
-import { EmbedBuilder, GuildTextBasedChannel } from 'discord.js';
-import { ticketEmbedColor, ticketCategoryId } from '../lib/constants';
+import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
+import { ticketEmbedColor, ticketCategory } from '../lib/constants';
 
 @ApplyOptions<Command.Options>({
 	name: 'subscribe',
+	aliases: ['sub'],
 	description: 'Subscribe to a ticket.',
-	preconditions: ['GuildOnly']
+	preconditions: ['customerServiceOnly']
 })
 export class SubscribeCommand extends Command {
-	public override registerApplicationCommands(registry: Command.Registry) {
-		registry.registerChatInputCommand((builder) => {
-			builder.setName(this.name).setDescription(this.description);
-		});
-	}
+	public override async messageRun(message: Message) {
+		const messageChannel = message.channel as GuildTextBasedChannel;
 
-	public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
-		const intChannel = interaction.channel! as GuildTextBasedChannel;
-
-		if (intChannel.parent && intChannel.parent.id! === ticketCategoryId) {
+		if (messageChannel.parent && messageChannel.parentId === ticketCategory) {
 			const openTicket = await this.container.prisma.ticket.findFirst({
 				where: {
 					closed: false,
-					channelId: intChannel.id
+					channelId: messageChannel.id
 				}
 			});
 
-			if (openTicket && !openTicket.subscribed.includes(interaction.user.id)) {
-				const currSub = openTicket.subscribed;
-				currSub.push(interaction.user.id);
+			if (openTicket) {
+				let currSub = openTicket.subscribed;
 
-				await this.container.prisma.ticket.update({
-					where: { id: openTicket.id },
-					data: { subscribed: currSub }
-				});
+				if (openTicket && !openTicket.subscribed.includes(message.author.id)) {
+					currSub.push(message.author.id);
 
-				return interaction.reply({
-					embeds: [
-						new EmbedBuilder().setColor(ticketEmbedColor).setDescription(`${interaction.user} has been subscribed to this ticket.`)
-					]
-				});
+					await this.container.prisma.ticket.update({
+						where: { id: openTicket.id },
+						data: { subscribed: currSub }
+					});
+
+					return message.reply({
+						embeds: [
+							new EmbedBuilder()
+								.setColor(ticketEmbedColor)
+								.setDescription(`<@${message.author.id}> has been subscribed to this ticket.`)
+						]
+					});
+				} else {
+					return message.reply({
+						embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription("You're already subscribed to this ticket.")]
+					});
+				}
 			} else {
-				return interaction.reply({
-					embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription("You're already subscribed to this ticket.")],
-					ephemeral: true
+				return message.reply({
+					embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription("This isn't a valid ticket, you cannot run this command.")]
 				});
 			}
-		} else {
-			return interaction.reply({
-				embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription("This isn't a valid ticket, you cannot run this command.")],
-				ephemeral: true
-			});
 		}
+
+		return;
 	}
 }

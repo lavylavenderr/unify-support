@@ -5,8 +5,6 @@ import { env } from './lib/env';
 
 const client = new AustrianBot();
 
-import "./jobs"
-
 (async () => {
 	client
 		.login(env.DISCORD_TOKEN)

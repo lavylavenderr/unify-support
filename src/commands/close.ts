@@ -9,7 +9,8 @@ import { PutObjectCommand } from '@aws-sdk/client-s3';
 @ApplyOptions<Command.Options>({
 	name: 'close',
 	description: 'Close a modmail ticket.',
-	aliases: ['c']
+	aliases: ['c'],
+	preconditions: ['customerServiceOnly']
 })
 export class CloseCommand extends Command {
 	public override async messageRun(message: Message) {

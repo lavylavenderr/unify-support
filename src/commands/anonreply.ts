@@ -6,7 +6,8 @@ import { ticketEmbedColor } from '../lib/constants';
 @ApplyOptions<Command.Options>({
 	name: 'areply',
     aliases: ['anonreply'],
-	description: 'Use this command to reply to a modmail ticket anonyomously.'
+	description: 'Use this command to reply to a modmail ticket anonyomously.',
+	preconditions: ['customerServiceOnly']
 })
 export class ReplyCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {

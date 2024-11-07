@@ -189,6 +189,50 @@ export class messageCreateEvent extends Listener {
 						});
 					});
 			}
+		} else {
+			const openTicket = await this.container.prisma.ticket.findFirst({
+				where: { channelId: message.channel.id }
+			});
+
+			if (openTicket) {
+				const splitAtPrefix = message.content.substring(1);
+				const allSnippets = await this.container.prisma.snippet.findMany();
+
+				if (allSnippets.find((x) => x.identifier === splitAtPrefix)) {
+					const snippet = allSnippets.find((x) => x.identifier === splitAtPrefix)!;
+
+					await this.container.client.users.send(openTicket.author, {
+						embeds: [
+							new EmbedBuilder()
+								.setColor(ticketEmbedColor)
+								.setDescription(snippet.content)
+								.setAuthor({
+									name: `${message.author.globalName} (@${message.author.username})`,
+									iconURL: message.author.avatarURL()!
+								})
+								.setTimestamp()
+								.setFooter({ text: 'Unify Support' })
+						]
+					});
+
+					// @ts-expect-error
+					message.channel.send({
+						embeds: [
+							new EmbedBuilder()
+								.setColor(ticketEmbedColor)
+								.setDescription(snippet.content)
+								.setAuthor({
+									name: `${message.author.globalName} (@${message.author.username})`,
+									iconURL: message.author.avatarURL()!
+								})
+								.setTimestamp()
+								.setFooter({ text: 'Unify Support' })
+						]
+					});
+
+					message.delete();
+				}
+			}
 		}
 	}
 }
