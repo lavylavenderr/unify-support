@@ -1,6 +1,6 @@
-# Austrian Personnel Bot
+# Unify Support Bot
 
-This is the bot that runs the backend things at Austrian. It shall help keep things running well. This bot is coded in TypeScript, which is JavaScript, however, with more type safety built in.
+This bot is the modmail support system in order to provide services to our customers. If you have any questions, please inform Lavender.
 
 ## Setting up the Bot
 
