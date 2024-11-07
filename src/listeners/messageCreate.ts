@@ -40,8 +40,8 @@ export class messageCreateEvent extends Listener {
 							data: { scheduledCloseTime: null }
 						});
 
-					ticketChannel
-						.send({
+					try {
+						const reply = await ticketChannel.send({
 							embeds: [
 								new EmbedBuilder()
 									.setColor(ticketEmbedColor)
@@ -50,22 +50,31 @@ export class messageCreateEvent extends Listener {
 										name: `${message.author.globalName} (@${message.author.username})`,
 										iconURL: message.author.avatarURL()!
 									})
+									.setTimestamp()
 							],
 							files: Array.from(message.attachments.values()),
 							...(openTicket!.subscribed.length > 0 && { content: openTicket!.subscribed.map((value) => `<@${value}>`).join(' ') })
-						})
-						.then(() => message.react('✅'))
-						.catch((error) => {
-							this.container.logger.error(error);
-							message.reply({
-								allowedMentions: { repliedUser: false },
-								embeds: [
-									new EmbedBuilder()
-										.setColor(Colors.Red)
-										.setDescription('Oh no, something went wrong, please report this to @FoxxyMaple.')
-								]
-							});
 						});
+						message.react('✅');
+
+						await this.container.prisma.ticketMessage.create({
+							data: {
+								ticketId: openTicket.id,
+								supportSideMsg: reply.id,
+								clientSideMsg: message.id
+							}
+						});
+					} catch (e) {
+						this.container.logger.error(e);
+						message.reply({
+							allowedMentions: { repliedUser: false },
+							embeds: [
+								new EmbedBuilder()
+									.setColor(Colors.Red)
+									.setDescription('Oh no, something went wrong, please report this to @FoxxyMaple.')
+							]
+						});
+					}
 				} else {
 					await this.container.prisma.ticket.update({
 						where: {
@@ -152,7 +161,8 @@ export class messageCreateEvent extends Listener {
 								data: {
 									channelId: c.id,
 									author: message.author.id,
-									category: categoryType
+									category: categoryType,
+									dmId: message.channelId
 								}
 							});
 
@@ -211,11 +221,12 @@ export class messageCreateEvent extends Listener {
 			if (openTicket) {
 				const splitAtPrefix = message.content.substring(1);
 				const allSnippets = await this.container.prisma.snippet.findMany();
+				const messageChannel = message.channel as GuildTextBasedChannel;
 
 				if (allSnippets.find((x) => x.identifier === splitAtPrefix)) {
 					const snippet = allSnippets.find((x) => x.identifier === splitAtPrefix)!;
 
-					await this.container.client.users.send(openTicket.author, {
+					const usrMsg = await this.container.client.users.send(openTicket.author, {
 						embeds: [
 							new EmbedBuilder()
 								.setColor(ticketEmbedColor)
@@ -229,8 +240,7 @@ export class messageCreateEvent extends Listener {
 						]
 					});
 
-					// @ts-expect-error
-					message.channel.send({
+					const staffMsg = await messageChannel.send({
 						embeds: [
 							new EmbedBuilder()
 								.setColor(ticketEmbedColor)
@@ -242,6 +252,14 @@ export class messageCreateEvent extends Listener {
 								.setTimestamp()
 								.setFooter({ text: 'Unify Support' })
 						]
+					});
+
+					await this.container.prisma.ticketMessage.create({
+						data: {
+							ticketId: openTicket.id,
+							supportSideMsg: staffMsg.id,
+							clientSideMsg: usrMsg.id
+						}
 					});
 
 					if (snippet.identifier === 'anythingelse') {

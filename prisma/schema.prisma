@@ -22,9 +22,19 @@ model Ticket {
   claimedBy  String?
   category   TicketCategories @default(Other)
 
+  dmId               String
+  messages           TicketMessage[]
   scheduledCloseTime DateTime?
 
   closed Boolean @default(false)
+}
+
+model TicketMessage {
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
+  ticketId Int
+
+  supportSideMsg String @unique
+  clientSideMsg  String @unique
 }
 
 model Snippet {

@@ -5,14 +5,14 @@ import { ticketEmbedColor } from '../lib/constants';
 
 @ApplyOptions<Command.Options>({
 	name: 'areply',
-    aliases: ['anonreply'],
+	aliases: ['anonreply'],
 	description: 'Use this command to reply to a modmail ticket anonyomously.',
 	preconditions: ['customerServiceOnly']
 })
 export class ReplyCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {
 		const messageChannel = message.channel as GuildTextBasedChannel;
-        const noPrefix = await args.rest('string').catch(() => null);
+		const noPrefix = await args.rest('string').catch(() => null);
 		const openTicket = await this.container.prisma.ticket.findFirst({
 			where: {
 				closed: false,
@@ -21,7 +21,7 @@ export class ReplyCommand extends Command {
 		});
 
 		if (openTicket) {
-			await this.container.client.users.send(openTicket.author, {
+			const usrMsg = await this.container.client.users.send(openTicket.author, {
 				embeds: [
 					new EmbedBuilder()
 						.setColor(ticketEmbedColor)
@@ -36,7 +36,7 @@ export class ReplyCommand extends Command {
 				files: Array.from(message.attachments.values())
 			});
 
-			messageChannel.send({
+			const staffMsg = await messageChannel.send({
 				embeds: [
 					new EmbedBuilder()
 						.setColor(ticketEmbedColor)
@@ -49,6 +49,14 @@ export class ReplyCommand extends Command {
 						.setFooter({ text: 'Unify Support' })
 				],
 				files: Array.from(message.attachments.values())
+			});
+
+			await this.container.prisma.ticketMessage.create({
+				data: {
+					ticketId: openTicket.id,
+					supportSideMsg: staffMsg.id,
+					clientSideMsg: usrMsg.id
+				}
 			});
 
 			message.delete();

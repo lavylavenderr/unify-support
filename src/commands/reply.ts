@@ -21,7 +21,7 @@ export class ReplyCommand extends Command {
 		});
 
 		if (openTicket) {
-			await this.container.client.users.send(openTicket.author, {
+			const usrMsg = await this.container.client.users.send(openTicket.author, {
 				embeds: [
 					new EmbedBuilder()
 						.setColor(ticketEmbedColor)
@@ -36,7 +36,7 @@ export class ReplyCommand extends Command {
 				files: Array.from(message.attachments.values())
 			});
 
-			messageChannel.send({
+			const staffMsg = await messageChannel.send({
 				embeds: [
 					new EmbedBuilder()
 						.setColor(ticketEmbedColor)
@@ -50,6 +50,14 @@ export class ReplyCommand extends Command {
 				],
 				files: Array.from(message.attachments.values())
 			});
+
+			await this.container.prisma.ticketMessage.create({
+				data: {
+					ticketId: openTicket.id,
+					supportSideMsg: staffMsg.id,
+					clientSideMsg: usrMsg.id
+				}
+			})
 
 			message.delete();
 		}
