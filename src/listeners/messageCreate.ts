@@ -187,6 +187,7 @@ export class messageCreateEvent extends Listener {
 							});
 
 							c.send({
+								content: `${categoryType === 'PR' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === "Other" ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
 								embeds: [
 									new EmbedBuilder()
 										.setColor(ticketEmbedColor)
