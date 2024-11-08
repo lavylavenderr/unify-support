@@ -1,16 +1,17 @@
 import { ApplyOptions } from '@sapphire/decorators';
-import { Command } from '@sapphire/framework';
-import { EmbedBuilder, Message, TextChannel } from 'discord.js';
+import { Args, Command } from '@sapphire/framework';
 import { ticketCategory, ticketEmbedColor } from '../lib/constants';
+import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 
 @ApplyOptions<Command.Options>({
-	name: 'delete',
-	description: 'Delete a message sent by a staff member.',
-	preconditions: ['customerServiceOnly']
+	name: 'edit',
+	description: 'Edit a message sent in a modmail thread.',
+    preconditions: ['customerServiceOnly']
 })
-export class DeleteCommand extends Command {
-	public override async messageRun(message: Message) {
+export class EditCommand extends Command {
+	public override async messageRun(message: Message, args: Args) {
 		const messageChannel = message.channel as TextChannel;
+		const noPrefix = await args.rest('string').catch(() => null);
 
 		if (messageChannel.parent && messageChannel.parentId === ticketCategory) {
 			const openTicket = await this.container.prisma.ticket.findFirst({
@@ -23,7 +24,7 @@ export class DeleteCommand extends Command {
 			if (openTicket) {
 				if (!message.reference)
 					return message.reply({
-						embeds: [new EmbedBuilder().setDescription('Sorry, you must reply to a message to delete.').setColor(ticketEmbedColor)]
+						embeds: [new EmbedBuilder().setDescription('Sorry, you must reply to a message to edit it.').setColor(ticketEmbedColor)]
 					});
 
 				const msgRecord = await this.container.prisma.ticketMessage.findUnique({
@@ -40,7 +41,7 @@ export class DeleteCommand extends Command {
 
 				if (clientMsg.author.id !== this.container.client.user!.id)
 					return message.reply({
-						embeds: [new EmbedBuilder().setDescription('You cannot delete a message sent by a user.').setColor(ticketEmbedColor)]
+						embeds: [new EmbedBuilder().setDescription('You cannot edit a message sent by a user.').setColor(ticketEmbedColor)]
 					});
 
 				if (!supportMsg)
@@ -52,8 +53,34 @@ export class DeleteCommand extends Command {
 						]
 					});
 
-				(await clientMsg).delete();
-				(await supportMsg).delete();
+				(await supportMsg).edit({
+					embeds: [
+						new EmbedBuilder()
+							.setColor(ticketEmbedColor)
+							.setDescription(noPrefix ? noPrefix : '*No content*')
+							.setAuthor({
+								name: `${message.author.globalName} (@${message.author.username})`,
+								iconURL: message.author.avatarURL()!
+							})
+							.setTimestamp()
+							.setFooter({ text: 'Unify Support (Edited)' })
+					],
+					files: Array.from(message.attachments.values())
+				});
+				(await clientMsg).edit({
+					embeds: [
+						new EmbedBuilder()
+							.setColor(ticketEmbedColor)
+							.setDescription(noPrefix ? noPrefix : '*No content*')
+							.setAuthor({
+								name: `${message.author.globalName} (@${message.author.username})`,
+								iconURL: message.author.avatarURL()!
+							})
+							.setTimestamp()
+							.setFooter({ text: 'Unify Support' })
+					],
+					files: Array.from(message.attachments.values())
+				});
 				(await message).delete();
 			} else {
 				message.reply({
