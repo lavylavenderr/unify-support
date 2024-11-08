@@ -17,7 +17,7 @@ export class AddCommand extends Command {
 				channelId: messageChannel.id
 			}
 		});
-
+		
 		if (openTicket) {
 			if (!userOrRole)
 				return message.reply({
