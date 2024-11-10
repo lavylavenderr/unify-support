@@ -225,7 +225,7 @@ export class messageCreateEvent extends Listener {
 				const messageChannel = message.channel as GuildTextBasedChannel;
 
 				if (allSnippets.find((x) => x.identifier === splitAtPrefix)) {
-					const snippet = allSnippets.find((x) => x.identifier === splitAtPrefix)!;
+					const snippet = allSnippets.find((x) => x.identifier === splitAtPrefix.toLowerCase())!;
 
 					const usrMsg = await this.container.client.users.send(openTicket.author, {
 						embeds: [
