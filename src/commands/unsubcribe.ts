@@ -4,7 +4,7 @@ import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
 import { ticketEmbedColor, ticketCategory } from '../lib/constants';
 import { tickets, ticketType } from '../schema/tickets';
 import { eq } from 'drizzle-orm';
-import { getOpenTicketByChannelFromCache } from '../lib/cache';
+import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 
 @ApplyOptions<Command.Options>({
 	name: 'unsubscribe',
@@ -26,6 +26,7 @@ export class SubscribeCommand extends Command {
 					currSub = currSub.filter((x) => x !== message.author.id);
 
 					await this.container.db.update(tickets).set({ subscribed: currSub }).where(eq(tickets.id, openTicket.id));
+					flushCache(`userTicket:${openTicket.channelId}`)
 
 					return message.reply({
 						embeds: [

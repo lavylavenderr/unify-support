@@ -2,7 +2,7 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
 import { ticketEmbedColor, ticketCategory } from '../lib/constants';
-import { getOpenTicketByChannelFromCache } from '../lib/cache';
+import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { tickets, ticketType } from '../schema/tickets';
 import { eq } from 'drizzle-orm';
 
@@ -26,6 +26,7 @@ export class SubscribeCommand extends Command {
 					currSub.push(message.author.id);
 
 					await this.container.db.update(tickets).set({ subscribed: currSub }).where(eq(tickets.id, openTicket.id));
+					flushCache(`userTicket:${openTicket.channelId}`)
 
 					return message.reply({
 						embeds: [
