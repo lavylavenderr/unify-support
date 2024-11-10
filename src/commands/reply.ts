@@ -2,6 +2,8 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Args, Command } from '@sapphire/framework';
 import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
 import { ticketEmbedColor } from '../lib/constants';
+import { getOpenTicketByChannelFromCache } from '../lib/cache';
+import { ticketMessages, ticketType } from '../schema/tickets';
 
 @ApplyOptions<Command.Options>({
 	name: 'reply',
@@ -12,19 +14,10 @@ export class ReplyCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {
 		const messageChannel = message.channel as GuildTextBasedChannel;
 		const noPrefix = await args.rest('string').catch(() => null);
-		const openTicket = await this.container.prisma.ticket.findFirst({
-			where: {
-				closed: false,
-				channelId: messageChannel.id
-			},
-				cacheStrategy: {
-					ttl: 120,
-					tags: ["findFirst_ticket"]
-				}
-		});
+		const openTicket = await getOpenTicketByChannelFromCache(messageChannel.id) as ticketType;
 
 		if (openTicket) {
-			const usrMsg = await this.container.client.users.send(openTicket.author, {
+			const usrMsg = await this.container.client.users.send(openTicket.authorId, {
 				embeds: [
 					new EmbedBuilder()
 						.setColor(ticketEmbedColor)
@@ -54,13 +47,9 @@ export class ReplyCommand extends Command {
 				files: Array.from(message.attachments.values())
 			});
 
-			await this.container.prisma.ticketMessage.create({
-				data: {
-					ticketId: openTicket.id,
-					supportSideMsg: staffMsg.id,
-					clientSideMsg: usrMsg.id
-				}
-			})
+			await this.container.db
+				.insert(ticketMessages)
+				.values({ ticketId: openTicket.id, supportMsgId: staffMsg.id, clientMsgId: usrMsg.id })
 
 			message.delete();
 		}

@@ -2,6 +2,8 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Args, Command } from '@sapphire/framework';
 import { EmbedBuilder, Message, TextChannel, User } from 'discord.js';
 import { ticketEmbedColor } from '../lib/constants';
+import { getOpenTicketByChannelFromCache } from '../lib/cache';
+import { ticketType } from '../schema/tickets';
 
 @ApplyOptions<Command.Options>({
 	name: 'remove',
@@ -11,16 +13,8 @@ export class AddCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {
 		const messageChannel = message.channel as TextChannel;
 		const userOrRole = await args.pick('user').catch(async () => await args.pick('role').catch(() => null));
-		const openTicket = await this.container.prisma.ticket.findFirst({
-			where: {
-				closed: false,
-				channelId: messageChannel.id
-			},
-				cacheStrategy: {
-					ttl: 120,
-					tags: ["findFirst_ticket"]
-				}
-		});
+		const openTicket = await getOpenTicketByChannelFromCache(messageChannel.id) as ticketType;
+
 		if (openTicket) {
 			if (!userOrRole)
 				return message.reply({

@@ -2,6 +2,9 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { ticketCategory, ticketEmbedColor } from '../lib/constants';
+import { getOpenTicketByChannelFromCache } from '../lib/cache';
+import { ticketMessages, ticketType } from '../schema/tickets';
+import { eq } from 'drizzle-orm';
 
 @ApplyOptions<Command.Options>({
 	name: 'delete',
@@ -13,16 +16,7 @@ export class DeleteCommand extends Command {
 		const messageChannel = message.channel as TextChannel;
 
 		if (messageChannel.parent && messageChannel.parentId === ticketCategory) {
-			const openTicket = await this.container.prisma.ticket.findFirst({
-				where: {
-					closed: false,
-					channelId: messageChannel.id
-				},
-					cacheStrategy: {
-						ttl: 120,
-						tags: ["findFirst_ticket"]
-					}
-			});
+			const openTicket = (await getOpenTicketByChannelFromCache(messageChannel.id)) as ticketType;
 
 			if (openTicket) {
 				if (!message.reference)
@@ -30,17 +24,21 @@ export class DeleteCommand extends Command {
 						embeds: [new EmbedBuilder().setDescription('Sorry, you must reply to a message to delete.').setColor(ticketEmbedColor)]
 					});
 
-				const msgRecord = await this.container.prisma.ticketMessage.findUnique({
-					where: { supportSideMsg: message.reference.messageId }
-				});
-				if (!msgRecord)
+				const deletedMessageRecord = (
+					await this.container.db
+						.select()
+						.from(ticketMessages)
+						.where(eq(ticketMessages.supportMsgId, message.reference.messageId ?? '1'))
+				)[0];
+
+				if (!deletedMessageRecord)
 					return message.reply({
 						embeds: [new EmbedBuilder().setDescription('Sorry, I did not find that message in my database.').setColor(ticketEmbedColor)]
 					});
 
 				const clientDms = (await this.container.client.channels.fetch(openTicket.dmId!)) as TextChannel;
-				const clientMsg = await clientDms.messages.fetch(msgRecord.clientSideMsg)!;
-				const supportMsg = await message.channel.messages.fetch(msgRecord.supportSideMsg ?? '1');
+				const clientMsg = await clientDms.messages.fetch(deletedMessageRecord.clientMsgId!)!;
+				const supportMsg = await message.channel.messages.fetch(deletedMessageRecord.supportMsgId! ?? '1');
 
 				if (clientMsg.author.id !== this.container.client.user!.id)
 					return message.reply({

@@ -2,11 +2,14 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Args, Command } from '@sapphire/framework';
 import { ticketCategory, ticketEmbedColor } from '../lib/constants';
 import { EmbedBuilder, Message, TextChannel } from 'discord.js';
+import { getOpenTicketByChannelFromCache } from '../lib/cache';
+import { ticketMessages, ticketType } from '../schema/tickets';
+import { eq } from 'drizzle-orm';
 
 @ApplyOptions<Command.Options>({
 	name: 'edit',
 	description: 'Edit a message sent in a modmail thread.',
-    preconditions: ['customerServiceOnly']
+	preconditions: ['customerServiceOnly']
 })
 export class EditCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {
@@ -14,16 +17,7 @@ export class EditCommand extends Command {
 		const noPrefix = await args.rest('string').catch(() => null);
 
 		if (messageChannel.parent && messageChannel.parentId === ticketCategory) {
-			const openTicket = await this.container.prisma.ticket.findFirst({
-				where: {
-					closed: false,
-					channelId: messageChannel.id
-				},
-					cacheStrategy: {
-						ttl: 120,
-						tags: ["findFirst_ticket"]
-					}
-			});
+			const openTicket = (await getOpenTicketByChannelFromCache(messageChannel.id)) as ticketType;
 
 			if (openTicket) {
 				if (!message.reference)
@@ -31,17 +25,21 @@ export class EditCommand extends Command {
 						embeds: [new EmbedBuilder().setDescription('Sorry, you must reply to a message to edit it.').setColor(ticketEmbedColor)]
 					});
 
-				const msgRecord = await this.container.prisma.ticketMessage.findUnique({
-					where: { supportSideMsg: message.reference.messageId }
-				});
-				if (!msgRecord)
+				const deletedMessageRecord = (
+					await this.container.db
+						.select()
+						.from(ticketMessages)
+						.where(eq(ticketMessages.supportMsgId, message.reference.messageId ?? '1'))
+				)[0];
+
+				if (!deletedMessageRecord)
 					return message.reply({
 						embeds: [new EmbedBuilder().setDescription('Sorry, I did not find that message in my database.').setColor(ticketEmbedColor)]
 					});
 
 				const clientDms = (await this.container.client.channels.fetch(openTicket.dmId!)) as TextChannel;
-				const clientMsg = await clientDms.messages.fetch(msgRecord.clientSideMsg)!;
-				const supportMsg = await message.channel.messages.fetch(msgRecord.supportSideMsg ?? '1');
+				const clientMsg = await clientDms.messages.fetch(deletedMessageRecord.clientMsgId ?? '1')!;
+				const supportMsg = await message.channel.messages.fetch(deletedMessageRecord.supportMsgId ?? '1');
 
 				if (clientMsg.author.id !== this.container.client.user!.id)
 					return message.reply({

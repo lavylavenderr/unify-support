@@ -5,6 +5,9 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, GuildTextBa
 import discordTranscripts from 'discord-html-transcripts';
 import { s3Client } from '../lib/space';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
+import { ticketType, tickets } from '../schema/tickets';
+import { eq } from 'drizzle-orm';
 
 @ApplyOptions<Command.Options>({
 	name: 'close',
@@ -17,16 +20,8 @@ export class CloseCommand extends Command {
 		const messageChannel = message.channel as GuildTextBasedChannel;
 
 		if (messageChannel.parent && messageChannel.parentId === ticketCategory) {
-			const openTicket = await this.container.prisma.ticket.findFirst({
-				where: {
-					closed: false,
-					channelId: messageChannel.id
-				},
-					cacheStrategy: {
-						ttl: 120,
-						tags: ["findFirst_ticket"]
-					}
-			});
+			const openTicket = (await getOpenTicketByChannelFromCache(messageChannel.id)) as ticketType;
+
 			if (openTicket) {
 				const confirmbutton = new ButtonBuilder().setCustomId('confirmTicketClose').setLabel('Confirm').setStyle(ButtonStyle.Danger);
 				const cancelbutton = new ButtonBuilder().setCustomId('cancelTicketClose').setLabel('Cancel').setStyle(ButtonStyle.Secondary);
@@ -44,7 +39,7 @@ export class CloseCommand extends Command {
 					});
 
 					if (interaction.customId == 'confirmTicketClose') {
-						const user = await this.container.client.users.cache.get(openTicket.author);
+						const user = await this.container.client.users.cache.get(openTicket.authorId);
 
 						user
 							?.send({
@@ -60,11 +55,10 @@ export class CloseCommand extends Command {
 								this.container.logger.error('Unable to send ticket close notification');
 							});
 
-						const ticketOpener = await this.container.client.users.fetch(openTicket.author)!;
+						const ticketOpener = await this.container.client.users.fetch(openTicket.authorId)!;
 						const attachment = await discordTranscripts.createTranscript(message.channel!, {
-							filename: `transcript-${openTicket.id}.html`,
+							filename: `${openTicket.channelId}.html`,
 							saveImages: true,
-							footerText: 'Ticket ID ' + openTicket.id,
 							poweredBy: false
 						});
 						const attachmentBuffer = Buffer.from(await attachment.attachment.toString());
@@ -72,7 +66,7 @@ export class CloseCommand extends Command {
 						await s3Client.send(
 							new PutObjectCommand({
 								Bucket: 'foxxymaple',
-								Key: `unify/transcript-${openTicket.id}.html`,
+								Key: `unify/${openTicket.channelId}.html`,
 								Body: attachmentBuffer,
 								ACL: 'public-read',
 								ContentType: 'text/html; charset=utf-8'
@@ -91,7 +85,7 @@ export class CloseCommand extends Command {
 										},
 										{
 											name: 'Ticket Opener',
-											value: `<@${openTicket.author}>`,
+											value: `<@${openTicket.authorId}>`,
 											inline: true
 										},
 										{
@@ -111,22 +105,15 @@ export class CloseCommand extends Command {
 										.setLabel('Transcript')
 										.setEmoji('🔗')
 										.setStyle(ButtonStyle.Link)
-										.setURL(`https://storage.lavylavender.com/unify/transcript-${openTicket.id}.html`)
+										.setURL(`https://storage.lavylavender.com/unify/${openTicket.channelId}.html`)
 								)
 							]
 						});
 
 						message.channel!.delete();
-						await this.container.prisma.ticket.update({
-							where: { id: openTicket.id },
-							data: {
-								closed: true
-							}
-						});
 
-						await this.container.prisma.$accelerate.invalidate({
-							tags: ["findFirst_ticket"]
-						});
+						await this.container.db.update(tickets).set({ closed: true }).where(eq(tickets.id, openTicket.id));
+						flushCache(openTicket.authorId);
 					} else {
 						message.delete();
 						confirmMsg.delete();

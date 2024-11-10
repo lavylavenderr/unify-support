@@ -1,13 +1,11 @@
 import { LogLevel, SapphireClient, container } from '@sapphire/framework';
 import { getRootData } from '@sapphire/pieces';
 import { GatewayIntentBits, Partials } from 'discord.js';
-import { PrismaClient } from '@prisma/client';
 import { join } from 'path';
-import { withAccelerate } from '@prisma/extension-accelerate';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { env } from './env';
 
-const createPrismaClient = () => {
-	return new PrismaClient().$extends(withAccelerate());
-}
+const drizzleClient = drizzle(env.DATABASE_URL);
 export class UnifyBot extends SapphireClient {
 	private rootData = getRootData();
 
@@ -40,7 +38,7 @@ export class UnifyBot extends SapphireClient {
 	}
 
 	public override async login(token?: string) {
-		container.prisma = createPrismaClient()
+		container.db = drizzleClient;
 		return super.login(token);
 	}
 
@@ -51,6 +49,6 @@ export class UnifyBot extends SapphireClient {
 
 declare module '@sapphire/pieces' {
 	interface Container {
-		prisma: ReturnType<typeof createPrismaClient>;
+		db: typeof drizzleClient;
 	}
 }

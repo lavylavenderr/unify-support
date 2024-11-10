@@ -6,27 +6,23 @@ import discordTranscripts from 'discord-html-transcripts';
 import { s3Client } from '../lib/space';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { ticketEmbedColor } from '../lib/constants';
+import { tickets } from '../schema/tickets';
+import { eq, lte } from 'drizzle-orm';
+import { flushCache } from '../lib/cache';
 
 cronitor.wraps(cron);
 
 cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
-	const openTickets = await container.prisma.ticket.findMany({
-		where: {
-			closed: false,
-			scheduledCloseTime: {
-				lte: new Date()
-			}
-		}
-	});
+	const openTickets = await container.db.select().from(tickets).where(lte(tickets.scheduledCloseTime, new Date()));
 
 	for (const ticket of openTickets) {
-		const user = await container.client.users.fetch(ticket.author);
-		const ticketOpener = await container.client.users.fetch(ticket.author)!;
+		const user = await container.client.users.fetch(ticket.authorId);
+		const ticketOpener = await container.client.users.fetch(ticket.authorId)!;
 		const ticketChannel = (await container.client.channels.fetch(ticket.channelId)!) as TextChannel;
 		const transcriptChannel = (await container.client.channels.cache.get('902863701953101854')) as GuildTextBasedChannel;
 
 		const attachment = await discordTranscripts.createTranscript(ticketChannel, {
-			filename: `transcript-${ticket.id}.html`,
+			filename: `${ticket.channelId}.html`,
 			saveImages: true,
 			poweredBy: false
 		});
@@ -35,7 +31,7 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 		await s3Client.send(
 			new PutObjectCommand({
 				Bucket: 'foxxymaple',
-				Key: `unify/transcript-${ticket.id}.html`,
+				Key: `unify/${ticket.channelId}.html`,
 				Body: attachmentBuffer,
 				ACL: 'public-read',
 				ContentType: 'text/html; charset=utf-8'
@@ -68,7 +64,7 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 						},
 						{
 							name: 'Ticket Opener',
-							value: `<@${ticket.author}>`,
+							value: `<@${ticket.authorId}>`,
 							inline: true
 						}
 					)
@@ -83,21 +79,13 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 						.setLabel('Transcript')
 						.setEmoji('🔗')
 						.setStyle(ButtonStyle.Link)
-						.setURL(`https://storage.lavylavender.com/unify/transcript-${ticket.id}.html`)
+						.setURL(`https://storage.lavylavender.com/unify/${ticket.channelId}.html`)
 				)
 			]
 		});
 
 		ticketChannel.delete();
-		await container.prisma.ticket.update({
-			where: { id: ticket.id },
-			data: {
-				closed: true
-			}
-		});
-
-		await container.prisma.$accelerate.invalidate({
-			tags: ['findFirst_ticket']
-		});
+		await container.db.update(tickets).set({ closed: true }).where(eq(tickets.id, ticket.id));
+		flushCache();
 	}
 });

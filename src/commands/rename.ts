@@ -2,6 +2,8 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Args, Command } from '@sapphire/framework';
 import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
 import { ticketCategory, ticketEmbedColor } from '../lib/constants';
+import { getOpenTicketByChannelFromCache } from '../lib/cache';
+import { ticketType } from '../schema/tickets';
 
 @ApplyOptions<Command.Options>({
 	name: 'rename',
@@ -21,16 +23,7 @@ export class RenameCommand extends Command {
 				});
 
 			if (messageChannel.parent && messageChannel.parentId === ticketCategory) {
-				const openTicket = await this.container.prisma.ticket.findFirst({
-					where: {
-						closed: false,
-						channelId: messageChannel.id
-					},
-						cacheStrategy: {
-							ttl: 120,
-							tags: ["findFirst_ticket"]
-						}
-				});
+				const openTicket = await getOpenTicketByChannelFromCache(messageChannel.id) as ticketType;
 
 				if (openTicket) {
 					await messageChannel.setName(noPrefix, 'User Requested');

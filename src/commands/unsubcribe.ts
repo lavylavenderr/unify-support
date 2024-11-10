@@ -2,6 +2,9 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Command } from '@sapphire/framework';
 import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
 import { ticketEmbedColor, ticketCategory } from '../lib/constants';
+import { tickets, ticketType } from '../schema/tickets';
+import { eq } from 'drizzle-orm';
+import { getOpenTicketByChannelFromCache } from '../lib/cache';
 
 @ApplyOptions<Command.Options>({
 	name: 'unsubscribe',
@@ -14,16 +17,7 @@ export class SubscribeCommand extends Command {
 		const messageChannel = message.channel as GuildTextBasedChannel;
 
 		if (messageChannel.parent && messageChannel.parentId === ticketCategory) {
-			const openTicket = await this.container.prisma.ticket.findFirst({
-				where: {
-					closed: false,
-					channelId: messageChannel.id
-				},
-					cacheStrategy: {
-						ttl: 120,
-						tags: ["findFirst_ticket"]
-					}
-			});
+			const openTicket = (await getOpenTicketByChannelFromCache(messageChannel.id)) as ticketType;
 
 			if (openTicket) {
 				let currSub = openTicket.subscribed;
@@ -31,10 +25,7 @@ export class SubscribeCommand extends Command {
 				if (openTicket && openTicket.subscribed.includes(message.author.id)) {
 					currSub = currSub.filter((x) => x !== message.author.id);
 
-					await this.container.prisma.ticket.update({
-						where: { id: openTicket.id },
-						data: { subscribed: currSub }
-					});
+					await this.container.db.update(tickets).set({ subscribed: currSub }).where(eq(tickets.id, openTicket.id));
 
 					return message.reply({
 						embeds: [

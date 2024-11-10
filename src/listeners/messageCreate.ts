@@ -1,3 +1,4 @@
+import { ticketMessages, ticketType, tickets } from './../schema/tickets';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Events, Listener } from '@sapphire/framework';
 import {
@@ -12,6 +13,9 @@ import {
 } from 'discord.js';
 import { ticketEmbedColor, mainGuild, ticketDepartments, ticketCategory, serviceProviderRoleId, publicRelationsRoleId } from '../lib/constants';
 import { add } from 'date-fns';
+import { flushCache, getOpenTicketByChannelFromCache, getOpenTicketByUserFromCache, getSnippetFromCache } from '../lib/cache';
+import { and, eq } from 'drizzle-orm';
+import { snippetType } from '../schema/snippets';
 
 @ApplyOptions<Listener.Options>({
 	event: Events.MessageCreate
@@ -23,26 +27,14 @@ export class messageCreateEvent extends Listener {
 
 		// If is a DM message
 		if (!message.guild) {
-			const openTicket = await this.container.prisma.ticket.findFirst({
-				where: {
-					closed: false,
-					author: message.author.id
-				},
-				cacheStrategy: {
-					ttl: 120,
-					tags: ['findFirst_ticket']
-				}
-			});
+			const openTicket = (await getOpenTicketByUserFromCache(message.author.id)) as ticketType;
 
 			if (openTicket) {
-				const ticketChannel = (await this.container.client.channels.cache.get(openTicket?.channelId ?? '1')) as GuildTextBasedChannel;
+				const ticketChannel = (await this.container.client.channels.cache.get(openTicket.channelId)) as GuildTextBasedChannel;
 
 				if (ticketChannel) {
 					if (openTicket.scheduledCloseTime)
-						await this.container.prisma.ticket.update({
-							where: { id: openTicket.id },
-							data: { scheduledCloseTime: null }
-						});
+						await this.container.db.update(tickets).set({ scheduledCloseTime: null }).where(eq(tickets.id, openTicket.id));
 
 					try {
 						const reply = await ticketChannel.send({
@@ -61,13 +53,9 @@ export class messageCreateEvent extends Listener {
 						});
 						message.react('✅');
 
-						await this.container.prisma.ticketMessage.create({
-							data: {
-								ticketId: openTicket.id,
-								supportSideMsg: reply.id,
-								clientSideMsg: message.id
-							}
-						});
+						await this.container.db
+							.insert(ticketMessages)
+							.values({ ticketId: openTicket.id, supportMsgId: reply.id, clientMsgId: message.id });
 					} catch (e) {
 						this.container.logger.error(e);
 						message.reply({
@@ -80,18 +68,8 @@ export class messageCreateEvent extends Listener {
 						});
 					}
 				} else {
-					await this.container.prisma.ticket.update({
-						where: {
-							id: openTicket.id
-						},
-						data: {
-							closed: true
-						},
-					});
-
-					await this.container.prisma.$accelerate.invalidate({
-						tags: ['findFirst_ticket']
-					});
+					await this.container.db.update(tickets).set({ closed: true }).where(eq(tickets.id, openTicket.id));
+					flushCache(openTicket.authorId);
 
 					return message.reply({
 						allowedMentions: { repliedUser: false },
@@ -131,33 +109,34 @@ export class messageCreateEvent extends Listener {
 					.awaitMessageComponent({ filter: collectorFilter, componentType: ComponentType.StringSelect, time: 20000 })
 					.then(async (collected) => {
 						let categoryName;
-						let categoryType: 'Livery' | 'ThreeDLogo' | 'PR' | 'Other' | 'Uniform';
+						let categoryType: 'livery' | 'threedlogo' | 'pr' | 'other' | 'uniform';
 						let userName = message.author.globalName;
 
-						const pastTickets = await this.container.prisma.ticket.findMany({
-							where: { author: message.author.id }
-						});
+						const pastTickets = await this.container.db
+							.select()
+							.from(tickets)
+							.where(and(eq(tickets.closed, true), eq(tickets.authorId, message.author.id)));
 
 						switch (collected.values[0]) {
 							case 'Liveries':
 								categoryName = `liv-${message.author.globalName}`;
-								categoryType = 'Livery';
+								categoryType = 'livery';
 								break;
 							case '3D Logos':
 								categoryName = `log-${userName}`;
-								categoryType = 'ThreeDLogo';
+								categoryType = 'threedlogo';
 								break;
 							case 'Uniform':
 								categoryName = `uni-${userName}`;
-								categoryType = 'Uniform';
+								categoryType = 'uniform';
 								break;
 							case 'Public Relations':
 								categoryName = `pr-${userName}`;
-								categoryType = 'PR';
+								categoryType = 'pr';
 								break;
 							case 'Other':
 								categoryName = `other-${userName}`;
-								categoryType = 'Other';
+								categoryType = 'other';
 								break;
 						}
 
@@ -165,22 +144,17 @@ export class messageCreateEvent extends Listener {
 							c.setParent(ticketCategory);
 							c.setTopic('In order to reply to the user, please do .reply <message> in order to do so.');
 
-							await this.container.prisma.ticket.create({
-								data: {
-									channelId: c.id,
-									author: message.author.id,
-									category: categoryType,
-									dmId: message.channelId
-								}
+							await this.container.db.insert(tickets).values({
+								channelId: c.id,
+								authorId: message.author.id,
+								category: categoryType,
+								dmId: message.channelId
 							});
+							flushCache();
 
-							await this.container.prisma.$accelerate.invalidate({
-								tags: ['findFirst_ticket']
-							});
-
-							if (categoryType === 'Livery' || categoryType === 'ThreeDLogo' || categoryType === 'Uniform') {
+							if (categoryType === 'livery' || categoryType === 'threedlogo' || categoryType === 'uniform') {
 								c.permissionOverwrites.edit(serviceProviderRoleId, { ViewChannel: true, SendMessages: true });
-							} else if (categoryType === 'PR') {
+							} else if (categoryType === 'pr') {
 								c.permissionOverwrites.edit(publicRelationsRoleId, { ViewChannel: true, SendMessages: true });
 							}
 
@@ -199,7 +173,7 @@ export class messageCreateEvent extends Listener {
 							});
 
 							c.send({
-								content: `${categoryType === 'PR' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === 'Other' ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
+								content: `${categoryType === 'pr' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === 'other' ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
 								embeds: [
 									new EmbedBuilder()
 										.setColor(ticketEmbedColor)
@@ -227,29 +201,19 @@ export class messageCreateEvent extends Listener {
 					});
 			}
 		} else {
-			const openTicket = await this.container.prisma.ticket.findFirst({
-				where: { channelId: message.channel.id },
-				cacheStrategy: {
-					ttl: 120,
-					tags: ['findFirst_ticket']
-				}
-			});
+			const openTicket = (await getOpenTicketByChannelFromCache(message.channel.id)) as ticketType;
 
 			if (openTicket) {
 				const splitAtPrefix = message.content.substring(1);
-				const allSnippets = await this.container.prisma.snippet.findMany({
-					cacheStrategy: { ttl: 120, tags: ['findMany_snippets'] }
-				});
+				const requestedSnippet = (await getSnippetFromCache(splitAtPrefix)) as snippetType;
 				const messageChannel = message.channel as GuildTextBasedChannel;
 
-				if (allSnippets.find((x) => x.identifier === splitAtPrefix)) {
-					const snippet = allSnippets.find((x) => x.identifier === splitAtPrefix.toLowerCase())!;
-
-					const usrMsg = await this.container.client.users.send(openTicket.author, {
+				if (requestedSnippet) {
+					const usrMsg = await this.container.client.users.send(openTicket.authorId, {
 						embeds: [
 							new EmbedBuilder()
 								.setColor(ticketEmbedColor)
-								.setDescription(snippet.content)
+								.setDescription(requestedSnippet.content)
 								.setAuthor({
 									name: `${message.author.globalName} (@${message.author.username})`,
 									iconURL: message.author.avatarURL()!
@@ -263,7 +227,7 @@ export class messageCreateEvent extends Listener {
 						embeds: [
 							new EmbedBuilder()
 								.setColor(ticketEmbedColor)
-								.setDescription(snippet.content)
+								.setDescription(requestedSnippet.content)
 								.setAuthor({
 									name: `${message.author.globalName} (@${message.author.username})`,
 									iconURL: message.author.avatarURL()!
@@ -273,19 +237,15 @@ export class messageCreateEvent extends Listener {
 						]
 					});
 
-					await this.container.prisma.ticketMessage.create({
-						data: {
-							ticketId: openTicket.id,
-							supportSideMsg: staffMsg.id,
-							clientSideMsg: usrMsg.id
-						}
-					});
+					await this.container.db
+						.insert(ticketMessages)
+						.values({ ticketId: openTicket.id, supportMsgId: staffMsg.id, clientMsgId: usrMsg.id });
 
-					if (snippet.identifier === 'anythingelse') {
-						await this.container.prisma.ticket.update({
-							where: { id: openTicket.id },
-							data: { scheduledCloseTime: add(new Date(), { hours: 6 }) }
-						});
+					if (requestedSnippet.identifier === 'anythingelse') {
+						await this.container.db
+							.update(tickets)
+							.set({ scheduledCloseTime: add(new Date(), { hours: 6 }) })
+							.where(eq(tickets.id, openTicket.id));
 					}
 
 					message.delete();

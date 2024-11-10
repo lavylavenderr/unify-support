@@ -2,6 +2,9 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Events, Listener } from '@sapphire/framework';
 import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { ticketEmbedColor } from '../lib/constants';
+import { ticketMessages, ticketType } from '../schema/tickets';
+import { eq } from 'drizzle-orm';
+import { getOpenTicketByIdFromCache } from '../lib/cache';
 
 @ApplyOptions<Listener.Options>({
 	event: Events.MessageDelete
@@ -11,32 +14,31 @@ export class messageDeleteEvent extends Listener {
 		if (message.author.id === this.container.client.id) return;
 
 		if (!message.guild) {
-			const openTicket = await this.container.prisma.ticketMessage.findUnique({
-				where: { clientSideMsg: message.id },
-				include: { ticket: true }
-			});
+			const deletedMessageRecord = (await this.container.db.select().from(ticketMessages).where(eq(ticketMessages.clientMsgId, message.id)))[0];
 
-			if (openTicket) {
-				const modmailChannel = (await this.container.client.channels.fetch(openTicket.ticket.channelId!)) as TextChannel;
-				const supportMsg = await modmailChannel.messages.fetch(openTicket.supportSideMsg);
+			if (deletedMessageRecord) {
+				const openTicket = (await getOpenTicketByIdFromCache(deletedMessageRecord.ticketId!)) as ticketType;
 
-				if (!supportMsg) return;
+				if (openTicket) {
+					const modmailChannel = (await this.container.client.channels.fetch(openTicket.channelId)) as TextChannel;
+					const supportMsg = await modmailChannel.messages.fetch(deletedMessageRecord.supportMsgId!);
 
-				return supportMsg.edit({
-					embeds: [
-						new EmbedBuilder()
-							.setColor(ticketEmbedColor)
-							.setDescription(message.content ? message.content : 'No content provided.')
-							.setAuthor({
-								name: `${message.author.globalName} (@${message.author.username})`,
-								iconURL: message.author.avatarURL()!
-							})
-							.setTimestamp()
-							.setFooter({ text: 'Deleted by User' })
-					]
-				});
-			} else {
-				return;
+					if (!supportMsg) return;
+
+					return supportMsg.edit({
+						embeds: [
+							new EmbedBuilder()
+								.setColor(ticketEmbedColor)
+								.setDescription(message.content ? message.content : 'No content provided.')
+								.setAuthor({
+									name: `${message.author.globalName} (@${message.author.username})`,
+									iconURL: message.author.avatarURL()!
+								})
+								.setTimestamp()
+								.setFooter({ text: 'Deleted by User' })
+						]
+					});
+				}
 			}
 		}
 

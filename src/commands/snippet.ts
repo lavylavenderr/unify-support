@@ -2,6 +2,9 @@ import { ApplyOptions } from '@sapphire/decorators';
 import { Args, Command } from '@sapphire/framework';
 import { EmbedBuilder, Message } from 'discord.js';
 import { mainGuild, ticketEmbedColor } from '../lib/constants';
+import { snippets } from '../schema/snippets';
+import { flushCache } from '../lib/cache';
+import { eq } from 'drizzle-orm';
 
 @ApplyOptions<Command.Options>({
 	name: 'snippets',
@@ -16,7 +19,7 @@ export class SnippetCommand extends Command {
 		const thirdArg = args.finished ? null : await args.rest('string');
 
 		if (!sendOrAction) {
-			const allSnippets = await this.container.prisma.snippet.findMany();
+			const allSnippets = await this.container.db.select().from(snippets);
 
 			return message.reply({
 				embeds: [
@@ -33,7 +36,7 @@ export class SnippetCommand extends Command {
 				]
 			});
 		} else {
-			const allSnippets = await this.container.prisma.snippet.findMany();
+			const allSnippets = await this.container.db.select().from(snippets);
 
 			if (allSnippets.find((x) => x.identifier === sendOrAction)) {
 				if (!sendOrAction)
@@ -89,16 +92,8 @@ export class SnippetCommand extends Command {
 							embeds: [new EmbedBuilder().setDescription('Sorry! You cannot use that name for a snippet.').setColor(ticketEmbedColor)]
 						});
 
-					await this.container.prisma.snippet.create({
-						data: {
-							identifier: secondArg,
-							content: thirdArg
-						}
-					});
-
-					await this.container.prisma.$accelerate.invalidate({
-						tags: ['findMany_snippets']
-					});
+					await this.container.db.insert(snippets).values({ identifier: secondArg, content: thirdArg });
+					flushCache();
 
 					return message.reply({
 						embeds: [
@@ -117,13 +112,8 @@ export class SnippetCommand extends Command {
 							]
 						});
 
-					await this.container.prisma.snippet.delete({
-						where: { identifier: secondArg }
-					});
-
-					await this.container.prisma.$accelerate.invalidate({
-						tags: ['findMany_snippets']
-					});
+					await this.container.db.delete(snippets).where(eq(snippets.identifier, secondArg));
+					flushCache();
 
 					return message.reply({
 						embeds: [
@@ -156,16 +146,11 @@ export class SnippetCommand extends Command {
 							embeds: [new EmbedBuilder().setDescription('Sorry! You cannot use that name for a snippet.').setColor(ticketEmbedColor)]
 						});
 
-					await this.container.prisma.snippet.update({
-						where: { identifier: secondArg },
-						data: {
-							content: thirdArg
-						}
-					});
-
-					await this.container.prisma.$accelerate.invalidate({
-						tags: ['findMany_snippets']
-					});
+					await this.container.db
+						.update(snippets)
+						.set({ content: thirdArg })
+						.where(eq(snippets.identifier, secondArg))
+					flushCache();
 
 					return message.reply({
 						embeds: [
