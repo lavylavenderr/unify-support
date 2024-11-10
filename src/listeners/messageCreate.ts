@@ -86,7 +86,11 @@ export class messageCreateEvent extends Listener {
 						},
 						data: {
 							closed: true
-						}
+						},
+					});
+
+					await this.container.prisma.$accelerate.invalidate({
+						tags: ['findFirst_ticket']
 					});
 
 					return message.reply({
