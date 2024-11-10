@@ -26,7 +26,7 @@ export class SubscribeCommand extends Command {
 					currSub = currSub.filter((x) => x !== message.author.id);
 
 					await this.container.db.update(tickets).set({ subscribed: currSub }).where(eq(tickets.id, openTicket.id));
-					flushCache(`userTicket:${openTicket.channelId}`)
+					flushCache();
 
 					return message.reply({
 						embeds: [
