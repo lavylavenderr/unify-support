@@ -27,6 +27,10 @@ export class messageCreateEvent extends Listener {
 				where: {
 					closed: false,
 					author: message.author.id
+				},
+				cacheStrategy: {
+					ttl: 120,
+					tags: ['findFirst_ticket']
 				}
 			});
 
@@ -166,6 +170,10 @@ export class messageCreateEvent extends Listener {
 								}
 							});
 
+							await this.container.prisma.$accelerate.invalidate({
+								tags: ['findFirst_ticket']
+							});
+
 							if (categoryType === 'Livery' || categoryType === 'ThreeDLogo' || categoryType === 'Uniform') {
 								c.permissionOverwrites.edit(serviceProviderRoleId, { ViewChannel: true, SendMessages: true });
 							} else if (categoryType === 'PR') {
@@ -187,7 +195,7 @@ export class messageCreateEvent extends Listener {
 							});
 
 							c.send({
-								content: `${categoryType === 'PR' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === "Other" ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
+								content: `${categoryType === 'PR' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === 'Other' ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
 								embeds: [
 									new EmbedBuilder()
 										.setColor(ticketEmbedColor)
@@ -216,12 +224,18 @@ export class messageCreateEvent extends Listener {
 			}
 		} else {
 			const openTicket = await this.container.prisma.ticket.findFirst({
-				where: { channelId: message.channel.id }
+				where: { channelId: message.channel.id },
+				cacheStrategy: {
+					ttl: 120,
+					tags: ['findFirst_ticket']
+				}
 			});
 
 			if (openTicket) {
 				const splitAtPrefix = message.content.substring(1);
-				const allSnippets = await this.container.prisma.snippet.findMany();
+				const allSnippets = await this.container.prisma.snippet.findMany({
+					cacheStrategy: { ttl: 120, tags: ['findMany_snippets'] }
+				});
 				const messageChannel = message.channel as GuildTextBasedChannel;
 
 				if (allSnippets.find((x) => x.identifier === splitAtPrefix)) {

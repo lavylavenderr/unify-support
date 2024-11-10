@@ -8,6 +8,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.685.0",
     "@prisma/client": "^5.21.1",
+    "@prisma/extension-accelerate": "^1.2.1",
     "@sapphire/decorators": "^6.1.0",
     "@sapphire/discord.js-utilities": "7.1.6",
     "@sapphire/framework": "^5.2.1",
@@ -26,6 +27,7 @@
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "noblox.js": "^5.0.1",
+    "node-cache": "^5.1.2",
     "node-cron": "^3.0.3",
     "openblox": "^1.0.58",
     "prisma": "^5.21.1",

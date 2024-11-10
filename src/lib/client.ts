@@ -3,7 +3,11 @@ import { getRootData } from '@sapphire/pieces';
 import { GatewayIntentBits, Partials } from 'discord.js';
 import { PrismaClient } from '@prisma/client';
 import { join } from 'path';
+import { withAccelerate } from '@prisma/extension-accelerate';
 
+const createPrismaClient = () => {
+	return new PrismaClient().$extends(withAccelerate());
+}
 export class UnifyBot extends SapphireClient {
 	private rootData = getRootData();
 
@@ -36,7 +40,7 @@ export class UnifyBot extends SapphireClient {
 	}
 
 	public override async login(token?: string) {
-		container.prisma = new PrismaClient();
+		container.prisma = createPrismaClient()
 		return super.login(token);
 	}
 
@@ -47,6 +51,6 @@ export class UnifyBot extends SapphireClient {
 
 declare module '@sapphire/pieces' {
 	interface Container {
-		prisma: PrismaClient;
+		prisma: ReturnType<typeof createPrismaClient>;
 	}
 }

@@ -21,9 +21,12 @@ export class CloseCommand extends Command {
 				where: {
 					closed: false,
 					channelId: messageChannel.id
-				}
+				},
+					cacheStrategy: {
+						ttl: 120,
+						tags: ["findFirst_ticket"]
+					}
 			});
-
 			if (openTicket) {
 				const confirmbutton = new ButtonBuilder().setCustomId('confirmTicketClose').setLabel('Confirm').setStyle(ButtonStyle.Danger);
 				const cancelbutton = new ButtonBuilder().setCustomId('cancelTicketClose').setLabel('Cancel').setStyle(ButtonStyle.Secondary);
@@ -119,6 +122,10 @@ export class CloseCommand extends Command {
 							data: {
 								closed: true
 							}
+						});
+
+						await this.container.prisma.$accelerate.invalidate({
+							tags: ["findFirst_ticket"]
 						});
 					} else {
 						message.delete();

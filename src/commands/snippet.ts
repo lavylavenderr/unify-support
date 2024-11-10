@@ -52,22 +52,18 @@ export class SnippetCommand extends Command {
 					});
 
 				return message.reply({
-					embeds: [new EmbedBuilder().setTitle(`Snippet: ${sendOrAction}`).setDescription(requestedSnippet.content).setColor(ticketEmbedColor)]
+					embeds: [
+						new EmbedBuilder().setTitle(`Snippet: ${sendOrAction}`).setDescription(requestedSnippet.content).setColor(ticketEmbedColor)
+					]
 				});
 			} else {
 				const guildMember = await (await this.container.client.guilds.fetch(mainGuild)).members.fetch(message.author.id);
 				const roleIds = ['802870322109480991', '873145273415794708', '1271081315357294593', '1289956449040076852'];
 
-
-				if (!guildMember.roles.cache.some((role) => roleIds.includes(role.id))) 
+				if (!guildMember.roles.cache.some((role) => roleIds.includes(role.id)))
 					return message.reply({
-						embeds: [
-							new EmbedBuilder()
-								.setDescription('Sorry, only executives can manage snippets.')
-								.setColor(ticketEmbedColor)
-						]
-					})
-				
+						embeds: [new EmbedBuilder().setDescription('Sorry, only executives can manage snippets.').setColor(ticketEmbedColor)]
+					});
 
 				if (sendOrAction === 'add') {
 					if (!secondArg)
@@ -100,6 +96,10 @@ export class SnippetCommand extends Command {
 						}
 					});
 
+					await this.container.prisma.$accelerate.invalidate({
+						tags: ['findMany_snippets']
+					});
+
 					return message.reply({
 						embeds: [
 							new EmbedBuilder()
@@ -119,6 +119,10 @@ export class SnippetCommand extends Command {
 
 					await this.container.prisma.snippet.delete({
 						where: { identifier: secondArg }
+					});
+
+					await this.container.prisma.$accelerate.invalidate({
+						tags: ['findMany_snippets']
 					});
 
 					return message.reply({
@@ -157,6 +161,10 @@ export class SnippetCommand extends Command {
 						data: {
 							content: thirdArg
 						}
+					});
+
+					await this.container.prisma.$accelerate.invalidate({
+						tags: ['findMany_snippets']
 					});
 
 					return message.reply({

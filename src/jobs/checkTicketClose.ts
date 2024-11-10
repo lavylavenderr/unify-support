@@ -95,5 +95,9 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 				closed: true
 			}
 		});
+
+		await container.prisma.$accelerate.invalidate({
+			tags: ['findFirst_ticket']
+		});
 	}
 });

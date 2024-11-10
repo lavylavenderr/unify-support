@@ -15,7 +15,11 @@ export class AddCommand extends Command {
 			where: {
 				closed: false,
 				channelId: messageChannel.id
-			}
+			},
+				cacheStrategy: {
+					ttl: 120,
+					tags: ["findFirst_ticket"]
+				}
 		});
 		
 		if (openTicket) {
