@@ -7,18 +7,21 @@ import { s3Client } from '../lib/space';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { ticketEmbedColor } from '../lib/constants';
 import { tickets } from '../schema/tickets';
-import { eq, lte } from 'drizzle-orm';
+import { and, eq, lte } from 'drizzle-orm';
 import { flushCache } from '../lib/cache';
 
 cronitor.wraps(cron);
 
 cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
-	const openTickets = await container.db.select().from(tickets).where(lte(tickets.scheduledCloseTime, new Date()));
+	const openTickets = await container.db
+		.select()
+		.from(tickets)
+		.where(and(lte(tickets.scheduledCloseTime, new Date()), eq(tickets.closed, false)));
 
 	for (const ticket of openTickets) {
 		const user = await container.client.users.fetch(ticket.authorId);
 		const ticketOpener = await container.client.users.fetch(ticket.authorId)!;
-		const ticketChannel = (await container.client.channels.fetch(ticket.channelId)!) as TextChannel;
+		const ticketChannel = (await container.client.channels.fetch(ticket.channelId ?? '1')) as TextChannel;
 		const transcriptChannel = (await container.client.channels.cache.get('902863701953101854')) as GuildTextBasedChannel;
 
 		const attachment = await discordTranscripts.createTranscript(ticketChannel, {
