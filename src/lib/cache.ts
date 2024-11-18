@@ -4,7 +4,7 @@ import { tickets } from '../schema/tickets';
 import { and, eq } from 'drizzle-orm';
 import { snippets } from '../schema/snippets';
 
-const cache = new NodeCache({ stdTTL: 3000 });
+const cache = new NodeCache({ stdTTL: 10000 });
 
 async function getFromCacheOrDb<T>(key: string, queryFn: () => Promise<T | null>): Promise<T | null> {
     const cached = cache.get<T>(key);
