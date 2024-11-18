@@ -59,48 +59,33 @@ export class CloseCommand extends Command {
 							})
 						);
 
-						const transcriptChannel = await this.container.client.channels.cache.get('902863701953101854')! as GuildTextBasedChannel
-						const transcriptMsg = await transcriptChannel.send(
-							{
-								embeds: [
-									new EmbedBuilder()
-										.setColor(ticketEmbedColor)
-										.addFields(
-											{
-												name: 'Ticket ID',
-												value: `#${openTicket.id}`,
-												inline: true
-											},
-											{
-												name: 'Ticket Opener',
-												value: `<@${openTicket.authorId}>`,
-												inline: true
-											},
-											{
-												name: 'Closed By',
-												value: `<@${message.author.id}>`,
-												inline: false
-											}
-										)
-										.setAuthor({
-											name: `${ticketOpener.globalName} (@${ticketOpener.username})`,
-											iconURL: ticketOpener.avatarURL()!
-										})
-								],
-								components: [
-									new ActionRowBuilder<ButtonBuilder>().addComponents(
-										new ButtonBuilder()
-											.setLabel('Transcript')
-											.setEmoji('🔗')
-											.setStyle(ButtonStyle.Link)
-											.setURL(`https://storage.lavylavender.com/unify/${openTicket.channelId}.html`)
-									)
-								]
-							}
-						);
+						let sendError: boolean = false;
+						const transcriptChannel = (await this.container.client.channels.cache.get('902863701953101854')!) as GuildTextBasedChannel;
+						const transcriptEmbed = new EmbedBuilder()
+							.setColor(ticketEmbedColor)
+							.addFields(
+								{
+									name: 'Ticket ID',
+									value: `#${openTicket.id}`,
+									inline: true
+								},
+								{
+									name: 'Ticket Opener',
+									value: `<@${openTicket.authorId}>`,
+									inline: true
+								},
+								{
+									name: 'Closed By',
+									value: `<@${message.author.id}>`,
+									inline: false
+								}
+							)
+							.setAuthor({
+								name: `${ticketOpener.globalName} (@${ticketOpener.username})`,
+								iconURL: ticketOpener.avatarURL()!
+							});
 
 						message.channel!.delete();
-
 						user
 							?.send({
 								embeds: [
@@ -112,14 +97,30 @@ export class CloseCommand extends Command {
 								]
 							})
 							.catch(() => {
-								transcriptMsg.reply({
-									embeds: [
+								sendError = true;
+							});
+
+						await transcriptChannel.send({
+							embeds: sendError
+								? [
+										transcriptEmbed,
 										new EmbedBuilder()
-											.setDescription("I was unable to inform the user that their ticket was closed, this may be because they were banned or left the server.")
+											.setDescription(
+												'⚠️ I was unable to inform the user that their ticket was closed, this may be because they were banned or left the server. **This is not an error with the bot!**'
+											)
 											.setColor(ticketEmbedColor)
 									]
-								})
-							});
+								: [transcriptEmbed],
+							components: [
+								new ActionRowBuilder<ButtonBuilder>().addComponents(
+									new ButtonBuilder()
+										.setLabel('Transcript')
+										.setEmoji('🔗')
+										.setStyle(ButtonStyle.Link)
+										.setURL(`https://storage.lavylavender.com/unify/${openTicket.channelId}.html`)
+								)
+							]
+						});
 
 						await this.container.db.update(tickets).set({ closed: true }).where(eq(tickets.id, openTicket.id));
 						flushCache(openTicket.authorId);
