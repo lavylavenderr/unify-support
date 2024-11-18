@@ -241,7 +241,7 @@ export class messageCreateEvent extends Listener {
 						.insert(ticketMessages)
 						.values({ ticketId: openTicket.id, supportMsgId: staffMsg.id, clientMsgId: usrMsg.id });
 
-					if (requestedSnippet.identifier === 'anythingelse') {
+					if (requestedSnippet.identifier === 'anythingelse' || requestedSnippet.identifier === 'inactive') {
 						await this.container.db
 							.update(tickets)
 							.set({ scheduledCloseTime: add(new Date(), { hours: 6 }) })
