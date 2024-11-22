@@ -141,8 +141,8 @@ export class messageCreateEvent extends Listener {
 						}
 
 						guild.channels.create({ name: categoryName! }).then(async (c) => {
-							c.setParent(ticketCategory);
-							c.setTopic('In order to reply to the user, please do .reply <message> in order to do so.');
+							await c.setParent(ticketCategory);
+							await c.setTopic('In order to reply to the user, please do .reply <message> in order to do so.');
 
 							await this.container.db.insert(tickets).values({
 								channelId: c.id,
@@ -153,26 +153,15 @@ export class messageCreateEvent extends Listener {
 							flushCache();
 
 							if (categoryType === 'livery' || categoryType === 'threedlogo' || categoryType === 'uniform') {
-								c.permissionOverwrites.edit(serviceProviderRoleId, { ViewChannel: true, SendMessages: true });
+								await c.permissionOverwrites.edit(serviceProviderRoleId, { ViewChannel: true, SendMessages: true });
 							} else if (categoryType === 'pr') {
-								c.permissionOverwrites.edit(publicRelationsRoleId, { ViewChannel: true, SendMessages: true });
+								await c.permissionOverwrites.edit(publicRelationsRoleId, { ViewChannel: true, SendMessages: true });
 							}
 
-							c.permissionOverwrites.edit('878175903895679027', { ViewChannel: true, SendMessages: true }); // Customer Service
-							c.permissionOverwrites.edit('1289956449040076852', { ViewChannel: true, SendMessages: true }); // Department Head
-
-							response.edit({
-								embeds: [
-									new EmbedBuilder()
-										.setColor(ticketEmbedColor)
-										.setDescription(
-											'Your ticket has been created. Please make sure to describe your inquiry in full detail in order to provide the responding member with as much info as possible.'
-										)
-								],
-								components: []
-							});
-
-							c.send({
+							await c.permissionOverwrites.edit('878175903895679027', { ViewChannel: true, SendMessages: true }); // Customer Service
+							await c.permissionOverwrites.edit('1289956449040076852', { ViewChannel: true, SendMessages: true }); // Department Head
+							
+							await c.send({
 								content: `${categoryType === 'pr' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === 'other' ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
 								embeds: [
 									new EmbedBuilder()
@@ -186,6 +175,17 @@ export class messageCreateEvent extends Listener {
 										})
 										.setFooter({ text: `User ID: ${message.author.id} • DM ID: ${message.channelId}` })
 								]
+							});
+
+							await response.edit({
+								embeds: [
+									new EmbedBuilder()
+										.setColor(ticketEmbedColor)
+										.setDescription(
+											'Your ticket has been created. Please make sure to describe your inquiry in full detail in order to provide the responding member with as much info as possible.'
+										)
+								],
+								components: []
 							});
 						});
 					})
