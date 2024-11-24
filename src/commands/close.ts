@@ -41,20 +41,6 @@ export class CloseCommand extends Command {
 					if (interaction.customId == 'confirmTicketClose') {
 						const user = await this.container.client.users.cache.get(openTicket.authorId);
 
-						user
-							?.send({
-								embeds: [
-									new EmbedBuilder()
-										.setColor(ticketEmbedColor)
-										.setDescription(
-											`Thank you for contacting us, and don't hesitate to open a new ticket if you require further support. If you wish to request your transcript, please open another ticket and reference ticket **#${openTicket.id}** so that they may locate it.`
-										)
-								]
-							})
-							.catch(() => {
-								this.container.logger.error('Unable to send ticket close notification');
-							});
-
 						const ticketOpener = await this.container.client.users.fetch(openTicket.authorId)!;
 						const attachment = await discordTranscripts.createTranscript(message.channel!, {
 							filename: `${openTicket.channelId}.html`,
@@ -73,32 +59,58 @@ export class CloseCommand extends Command {
 							})
 						);
 
-						((await this.container.client.channels.cache.get('902863701953101854')!) as GuildTextBasedChannel).send({
-							embeds: [
-								new EmbedBuilder()
-									.setColor(ticketEmbedColor)
-									.addFields(
-										{
-											name: 'Ticket ID',
-											value: `#${openTicket.id}`,
-											inline: true
-										},
-										{
-											name: 'Ticket Opener',
-											value: `<@${openTicket.authorId}>`,
-											inline: true
-										},
-										{
-											name: 'Closed By',
-											value: `<@${message.author.id}>`,
-											inline: false
-										}
-									)
-									.setAuthor({
-										name: `${ticketOpener.globalName} (@${ticketOpener.username})`,
-										iconURL: ticketOpener.avatarURL()!
-									})
-							],
+						let sendError: boolean = false;
+						const transcriptChannel = (await this.container.client.channels.cache.get('902863701953101854')!) as GuildTextBasedChannel;
+						const transcriptEmbed = new EmbedBuilder()
+							.setColor(ticketEmbedColor)
+							.addFields(
+								{
+									name: 'Ticket ID',
+									value: `#${openTicket.id}`,
+									inline: true
+								},
+								{
+									name: 'Ticket Opener',
+									value: `<@${openTicket.authorId}>`,
+									inline: true
+								},
+								{
+									name: 'Closed By',
+									value: `<@${message.author.id}>`,
+									inline: false
+								}
+							)
+							.setAuthor({
+								name: `${ticketOpener.globalName} (@${ticketOpener.username})`,
+								iconURL: ticketOpener.avatarURL()!
+							});
+
+						message.channel!.delete();
+						user
+							?.send({
+								embeds: [
+									new EmbedBuilder()
+										.setColor(ticketEmbedColor)
+										.setDescription(
+											`Thank you for contacting us, and don't hesitate to open a new ticket if you require further support. If you wish to request your transcript, please open another ticket and reference ticket **#${openTicket.id}** so that they may locate it.`
+										)
+								]
+							})
+							.catch(() => {
+								sendError = true;
+							});
+
+						await transcriptChannel.send({
+							embeds: sendError
+								? [
+										transcriptEmbed,
+										new EmbedBuilder()
+											.setDescription(
+												'⚠️ I was unable to inform the user that their ticket was closed, this may be because they were banned or left the server. **This is not an error with the bot!**'
+											)
+											.setColor(ticketEmbedColor)
+									]
+								: [transcriptEmbed],
 							components: [
 								new ActionRowBuilder<ButtonBuilder>().addComponents(
 									new ButtonBuilder()
@@ -109,8 +121,6 @@ export class CloseCommand extends Command {
 								)
 							]
 						});
-
-						message.channel!.delete();
 
 						await this.container.db.update(tickets).set({ closed: true }).where(eq(tickets.id, openTicket.id));
 						flushCache(openTicket.authorId);

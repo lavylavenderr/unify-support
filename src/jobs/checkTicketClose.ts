@@ -30,6 +30,7 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 			poweredBy: false
 		});
 		const attachmentBuffer = Buffer.from(await attachment.attachment.toString());
+		let sendError: boolean = false;
 
 		await s3Client.send(
 			new PutObjectCommand({
@@ -52,30 +53,45 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 				]
 			})
 			.catch(() => {
+				sendError = true;
 				container.logger.error('Unable to send ticket close notification');
 			});
 
+		const transcriptEmbed = new EmbedBuilder()
+			.setColor(ticketEmbedColor)
+			.addFields(
+				{
+					name: 'Ticket ID',
+					value: `#${ticket.id}`,
+					inline: true
+				},
+				{
+					name: 'Ticket Opener',
+					value: `<@${ticket.authorId}>`,
+					inline: true
+				},
+				{
+					name: 'Closed By',
+					value: `<@${container.client.user!.id}>`,
+					inline: false
+				}
+			)
+			.setAuthor({
+				name: `${ticketOpener.globalName} (@${ticketOpener.username})`,
+				iconURL: ticketOpener.avatarURL()!
+			});
+
 		transcriptChannel.send({
-			embeds: [
-				new EmbedBuilder()
-					.setColor(ticketEmbedColor)
-					.addFields(
-						{
-							name: 'Ticket ID',
-							value: `#${ticket.id}`,
-							inline: true
-						},
-						{
-							name: 'Ticket Opener',
-							value: `<@${ticket.authorId}>`,
-							inline: true
-						}
-					)
-					.setAuthor({
-						name: `${ticketOpener.globalName} (@${ticketOpener.username})`,
-						iconURL: ticketOpener.avatarURL()!
-					})
-			],
+			embeds: sendError
+				? [
+						transcriptEmbed,
+						new EmbedBuilder()
+							.setDescription(
+								'⚠️ I was unable to inform the user that their ticket was closed, this may be because they were banned or left the server. **This is not an error with the bot!**'
+							)
+							.setColor(ticketEmbedColor)
+					]
+				: [transcriptEmbed],
 			components: [
 				new ActionRowBuilder<ButtonBuilder>().addComponents(
 					new ButtonBuilder()
