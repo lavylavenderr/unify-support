@@ -5,6 +5,7 @@ import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { getOpenTicketByChannelFromCache } from '../lib/cache';
 import { ticketMessages, ticketType } from '../schema/tickets';
 import { eq } from 'drizzle-orm';
+import { getUserRoleInServer } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'edit',
@@ -65,7 +66,7 @@ export class EditCommand extends Command {
 								iconURL: message.author.avatarURL()!
 							})
 							.setTimestamp()
-							.setFooter({ text: 'Unify Support (Edited)' })
+							.setFooter({ text: `${await getUserRoleInServer(message.author.id)} - Edited` })
 					],
 					files: Array.from(message.attachments.values())
 				});
@@ -79,7 +80,7 @@ export class EditCommand extends Command {
 								iconURL: message.author.avatarURL()!
 							})
 							.setTimestamp()
-							.setFooter({ text: 'Unify Support' })
+							.setFooter({ text: `${await getUserRoleInServer(message.author.id)} - Edited` })
 					],
 					files: Array.from(message.attachments.values())
 				});

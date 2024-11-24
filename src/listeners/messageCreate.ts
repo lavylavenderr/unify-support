@@ -16,6 +16,7 @@ import { add } from 'date-fns';
 import { flushCache, getOpenTicketByChannelFromCache, getOpenTicketByUserFromCache, getSnippetFromCache } from '../lib/cache';
 import { and, eq } from 'drizzle-orm';
 import { snippetType } from '../schema/snippets';
+import { getUserRoleInServer } from '../lib/utils';
 
 @ApplyOptions<Listener.Options>({
 	event: Events.MessageCreate
@@ -46,6 +47,7 @@ export class messageCreateEvent extends Listener {
 										name: `${message.author.globalName} (@${message.author.username})`,
 										iconURL: message.author.avatarURL()!
 									})
+									.setFooter({ text: 'Message ID: ' + message.author.id })
 									.setTimestamp()
 							],
 							files: Array.from(message.attachments.values()),
@@ -219,7 +221,7 @@ export class messageCreateEvent extends Listener {
 									iconURL: message.author.avatarURL()!
 								})
 								.setTimestamp()
-								.setFooter({ text: 'Unify Support' })
+								.setFooter({ text: await getUserRoleInServer(message.author.id) })
 						]
 					});
 
@@ -233,7 +235,7 @@ export class messageCreateEvent extends Listener {
 									iconURL: message.author.avatarURL()!
 								})
 								.setTimestamp()
-								.setFooter({ text: 'Unify Support' })
+								.setFooter({ text: await getUserRoleInServer(message.author.id) })
 						]
 					});
 

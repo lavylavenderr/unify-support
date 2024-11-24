@@ -7,6 +7,7 @@ import {
 } from '@sapphire/framework';
 import { cyan } from 'colorette';
 import { Colors, EmbedBuilder, type APIUser, type Guild, type User } from 'discord.js';
+import { mainGuild } from './constants';
 
 export function logSuccessCommand(payload: ContextMenuCommandSuccessPayload | ChatInputCommandSuccessPayload | MessageCommandSuccessPayload): void {
 	let successLoggerData: ReturnType<typeof getSuccessLoggerData>;
@@ -27,6 +28,14 @@ export function getSuccessLoggerData(guild: Guild | null, user: User, command: C
 	const sentAt = getGuildInfo(guild);
 
 	return { shard, commandName, author, sentAt };
+}
+
+export async function getUserRoleInServer(userId: string) {
+	const unifyGuild = await container.client.guilds.fetch(mainGuild!);
+	const guildMember = await unifyGuild.members.fetch(userId!);
+	const topRole = guildMember.roles.highest;
+
+	return topRole.name;
 }
 
 export function createErrorEmbed(message: string) {

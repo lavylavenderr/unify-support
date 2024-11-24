@@ -4,6 +4,7 @@ import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
 import { ticketEmbedColor } from '../lib/constants';
 import { getOpenTicketByChannelFromCache } from '../lib/cache';
 import { ticketMessages, ticketType } from '../schema/tickets';
+import { getUserRoleInServer } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'reply',
@@ -27,7 +28,7 @@ export class ReplyCommand extends Command {
 							iconURL: message.author.avatarURL()!
 						})
 						.setTimestamp()
-						.setFooter({ text: 'Unify Support' })
+						.setFooter({ text: await getUserRoleInServer(message.author.id) })
 				],
 				files: Array.from(message.attachments.values())
 			});
@@ -42,7 +43,7 @@ export class ReplyCommand extends Command {
 							iconURL: message.author.avatarURL()!
 						})
 						.setTimestamp()
-						.setFooter({ text: 'Unify Support' })
+						.setFooter({ text: await getUserRoleInServer(message.author.id) })
 				],
 				files: Array.from(message.attachments.values())
 			});
