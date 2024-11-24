@@ -18,6 +18,9 @@ export class ReplyCommand extends Command {
 		const openTicket = await getOpenTicketByChannelFromCache(messageChannel.id) as ticketType;
 
 		if (openTicket) {
+			message.delete();
+
+			const userRole = await getUserRoleInServer(message.author.id);
 			const usrMsg = await this.container.client.users.send(openTicket.authorId, {
 				embeds: [
 					new EmbedBuilder()
@@ -28,7 +31,7 @@ export class ReplyCommand extends Command {
 							iconURL: message.author.avatarURL()!
 						})
 						.setTimestamp()
-						.setFooter({ text: await getUserRoleInServer(message.author.id) })
+						.setFooter({ text: userRole })
 				],
 				files: Array.from(message.attachments.values())
 			});
@@ -43,7 +46,7 @@ export class ReplyCommand extends Command {
 							iconURL: message.author.avatarURL()!
 						})
 						.setTimestamp()
-						.setFooter({ text: await getUserRoleInServer(message.author.id) })
+						.setFooter({ text: userRole })
 				],
 				files: Array.from(message.attachments.values())
 			});
@@ -51,8 +54,6 @@ export class ReplyCommand extends Command {
 			await this.container.db
 				.insert(ticketMessages)
 				.values({ ticketId: openTicket.id, supportMsgId: staffMsg.id, clientMsgId: usrMsg.id })
-
-			message.delete();
 		}
 	}
 }

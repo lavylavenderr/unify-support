@@ -211,6 +211,9 @@ export class messageCreateEvent extends Listener {
 				const messageChannel = message.channel as GuildTextBasedChannel;
 
 				if (requestedSnippet) {
+					message.delete();
+
+					const userRole = await getUserRoleInServer(message.author.id);
 					const usrMsg = await this.container.client.users.send(openTicket.authorId, {
 						embeds: [
 							new EmbedBuilder()
@@ -221,7 +224,7 @@ export class messageCreateEvent extends Listener {
 									iconURL: message.author.avatarURL()!
 								})
 								.setTimestamp()
-								.setFooter({ text: await getUserRoleInServer(message.author.id) })
+								.setFooter({ text: userRole })
 						]
 					});
 
@@ -235,7 +238,7 @@ export class messageCreateEvent extends Listener {
 									iconURL: message.author.avatarURL()!
 								})
 								.setTimestamp()
-								.setFooter({ text: await getUserRoleInServer(message.author.id) })
+								.setFooter({ text: userRole })
 						]
 					});
 
@@ -249,8 +252,6 @@ export class messageCreateEvent extends Listener {
 							.set({ scheduledCloseTime: add(new Date(), { hours: 6 }) })
 							.where(eq(tickets.id, openTicket.id));
 					}
-
-					message.delete();
 				}
 			}
 		}

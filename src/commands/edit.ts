@@ -41,6 +41,7 @@ export class EditCommand extends Command {
 				const clientDms = (await this.container.client.channels.fetch(openTicket.dmId!)) as TextChannel;
 				const clientMsg = await clientDms.messages.fetch(deletedMessageRecord.clientMsgId ?? '1')!;
 				const supportMsg = await message.channel.messages.fetch(deletedMessageRecord.supportMsgId ?? '1');
+				const userRole = await getUserRoleInServer(message.author.id);
 
 				if (clientMsg.author.id !== this.container.client.user!.id)
 					return message.reply({
@@ -66,7 +67,7 @@ export class EditCommand extends Command {
 								iconURL: message.author.avatarURL()!
 							})
 							.setTimestamp()
-							.setFooter({ text: `${await getUserRoleInServer(message.author.id)} - Edited` })
+							.setFooter({ text: `${userRole} - Edited` })
 					],
 					files: Array.from(message.attachments.values())
 				});
@@ -80,7 +81,7 @@ export class EditCommand extends Command {
 								iconURL: message.author.avatarURL()!
 							})
 							.setTimestamp()
-							.setFooter({ text: `${await getUserRoleInServer(message.author.id)} - Edited` })
+							.setFooter({ text: `${userRole} - Edited` })
 					],
 					files: Array.from(message.attachments.values())
 				});
