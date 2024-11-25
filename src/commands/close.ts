@@ -98,6 +98,7 @@ export class CloseCommand extends Command {
 							})
 							.catch(() => {
 								sendError = true;
+								this.container.logger.error('Unable to send ticket close notification');
 							});
 
 						await transcriptChannel.send({
