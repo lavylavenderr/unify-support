@@ -14,6 +14,7 @@ export const serviceProviderRoleId = '802909560393695232';
 export const departmentHeadRoleId = '1289956449040076852';
 export const publicRelationsRoleId = '1303815721003913277';
 
+export const ticketTopicMsg = 'In order to reply to the user, please do .reply <message> in order to do so.'
 export const ticketDepartments = [
 	{
 		name: 'Liveries',

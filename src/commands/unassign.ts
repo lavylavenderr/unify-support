@@ -3,7 +3,7 @@ import { Command } from '@sapphire/framework';
 import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { tickets, ticketType } from '../schema/tickets';
-import { ticketEmbedColor } from '../lib/constants';
+import { ticketEmbedColor, ticketTopicMsg } from '../lib/constants';
 import { eq } from 'drizzle-orm';
 
 @ApplyOptions<Command.Options>({
@@ -25,7 +25,7 @@ export class UnassignCommand extends Command {
 			await this.container.db.update(tickets).set({ claimedBy: null }).where(eq(tickets.id, openTicket.id));;
 			flushCache();
 
-			messageChannel.setTopic('Claimed By: Nobody');
+			messageChannel.setTopic('Claimed By: Nobody | ' + ticketTopicMsg);
 			return message.reply({
 				embeds: [
 					new EmbedBuilder().setColor(ticketEmbedColor).setDescription(`<@${openTicket.claimedBy}> has been unassigned from this ticket.`)
