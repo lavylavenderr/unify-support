@@ -25,7 +25,7 @@ export class UnassignCommand extends Command {
 			await this.container.db.update(tickets).set({ claimedBy: null }).where(eq(tickets.id, openTicket.id));;
 			flushCache();
 
-			messageChannel.setTopic('Claimed By: Nobody | ' + ticketTopicMsg);
+			await messageChannel.setTopic('Claimed By: Nobody | ' + ticketTopicMsg);
 			return message.reply({
 				embeds: [
 					new EmbedBuilder().setColor(ticketEmbedColor).setDescription(`<@${openTicket.claimedBy}> has been unassigned from this ticket.`)
