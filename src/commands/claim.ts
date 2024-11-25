@@ -30,7 +30,7 @@ export class ClaimCommand extends Command {
 			await this.container.db.update(tickets).set({ claimedBy: message.author.id }).where(eq(tickets.id, openTicket.id));
 			flushCache();
 
-			messageChannel.setTopic('Claimed By: ' + message.author.globalName + ' | ' + ticketTopicMsg);
+			await messageChannel.setTopic('Claimed By: ' + message.author.globalName + ' | ' + ticketTopicMsg);
 			return message.reply({
 				embeds: [
 					new EmbedBuilder()
