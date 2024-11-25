@@ -4,6 +4,7 @@ import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { tickets, ticketType } from '../schema/tickets';
 import { ticketEmbedColor } from '../lib/constants';
+import { eq } from 'drizzle-orm';
 
 @ApplyOptions<Command.Options>({
 	name: 'unassign',
@@ -21,7 +22,7 @@ export class UnassignCommand extends Command {
 					embeds: [new EmbedBuilder().setDescription(`This ticket hasn't been claimed.`).setColor(ticketEmbedColor)]
 				});
 
-			await this.container.db.update(tickets).set({ claimedBy: null });
+			await this.container.db.update(tickets).set({ claimedBy: null }).where(eq(tickets.id, openTicket.id));;
 			flushCache();
 
 			messageChannel.setTopic('Claimed By: Nobody');

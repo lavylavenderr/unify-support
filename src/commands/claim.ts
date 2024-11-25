@@ -4,6 +4,7 @@ import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { tickets, ticketType } from '../schema/tickets';
 import { ticketEmbedColor } from '../lib/constants';
+import { eq } from 'drizzle-orm';
 
 @ApplyOptions<Command.Options>({
 	name: 'claim',
@@ -26,7 +27,7 @@ export class ClaimCommand extends Command {
 					]
 				});
 
-			await this.container.db.update(tickets).set({ claimedBy: message.author.id });
+			await this.container.db.update(tickets).set({ claimedBy: message.author.id }).where(eq(tickets.id, openTicket.id));
 			flushCache();
 
 			messageChannel.setTopic('Claimed By: ' + message.author.globalName);
