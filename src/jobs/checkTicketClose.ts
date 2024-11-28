@@ -31,16 +31,21 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 		});
 		const attachmentBuffer = Buffer.from(await attachment.attachment.toString());
 		let sendError: boolean = false;
+		let transcriptError: boolean = false;
 
-		await s3Client.send(
-			new PutObjectCommand({
-				Bucket: 'foxxymaple',
-				Key: `unify/${ticket.channelId}.html`,
-				Body: attachmentBuffer,
-				ACL: 'public-read',
-				ContentType: 'text/html; charset=utf-8'
-			})
-		);
+		try {
+			await s3Client.send(
+				new PutObjectCommand({
+					Bucket: 'foxxymaple',
+					Key: `unify/${ticket.channelId}.html`,
+					Body: attachmentBuffer,
+					ACL: 'public-read',
+					ContentType: 'text/html; charset=utf-8'
+				})
+			);
+		} catch {
+			transcriptError = true;
+		}
 
 		user
 			?.send({
@@ -94,11 +99,13 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 				: [transcriptEmbed],
 			components: [
 				new ActionRowBuilder<ButtonBuilder>().addComponents(
-					new ButtonBuilder()
-						.setLabel('Transcript')
-						.setEmoji('🔗')
-						.setStyle(ButtonStyle.Link)
-						.setURL(`https://storage.lavylavender.com/unify/${ticket.channelId}.html`)
+					!transcriptError
+						? new ButtonBuilder()
+								.setLabel('Transcript')
+								.setEmoji('🔗')
+								.setStyle(ButtonStyle.Link)
+								.setURL(`https://storage.lavylavender.com/unify/${ticket.channelId}.html`)
+						: new ButtonBuilder().setLabel('Unable to Save Transcript').setEmoji('⚠').setStyle(ButtonStyle.Secondary).setDisabled(true)
 				)
 			]
 		});
