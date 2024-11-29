@@ -4,7 +4,7 @@ import { Command } from '@sapphire/framework';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
 import discordTranscripts from 'discord-html-transcripts';
 import { s3Client } from '../lib/space';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { ticketType, tickets } from '../schema/tickets';
 import { eq } from 'drizzle-orm';
@@ -26,11 +26,11 @@ export class CloseCommand extends Command {
 				const confirmbutton = new ButtonBuilder().setCustomId('confirmTicketClose').setLabel('Confirm').setStyle(ButtonStyle.Danger);
 				const cancelbutton = new ButtonBuilder().setCustomId('cancelTicketClose').setLabel('Cancel').setStyle(ButtonStyle.Secondary);
 
-				const confirmMsg = await messageChannel.send({
+				const collectorFilter = (i: any) => i.user.id === message.author.id;
+				const confirmMsg = await message.reply({
 					embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription('*Are you sure you want to close this ticket?*')],
 					components: [new ActionRowBuilder<ButtonBuilder>().addComponents(confirmbutton, cancelbutton)]
 				});
-				const collectorFilter = (i: any) => i.user.id === message.author.id;
 
 				try {
 					const interaction = await confirmMsg.awaitMessageComponent({
@@ -56,10 +56,19 @@ export class CloseCommand extends Command {
 								Body: attachmentBuffer,
 								ACL: 'public-read',
 								ContentType: 'text/html; charset=utf-8'
-							})
+							}),
+							function (_err, _data) {}
 						);
 
-						let sendError: boolean = false;
+						const transcript = await s3Client
+							.send(
+								new GetObjectCommand({
+									Bucket: 'foxxymaple',
+									Key: `unify/${openTicket.channelId}.html`
+								})
+							)
+							.catch(() => null);
+
 						const transcriptChannel = (await this.container.client.channels.cache.get('902863701953101854')!) as GuildTextBasedChannel;
 						const transcriptEmbed = new EmbedBuilder()
 							.setColor(ticketEmbedColor)
@@ -97,28 +106,25 @@ export class CloseCommand extends Command {
 								]
 							})
 							.catch(() => {
-								sendError = true;
-								this.container.logger.error('Unable to send ticket close notification');
+								this.container.logger.error('Unable to send ticket close notification to: ' + user.id);
 							});
 
 						await transcriptChannel.send({
-							embeds: sendError
-								? [
-										transcriptEmbed,
-										new EmbedBuilder()
-											.setDescription(
-												'⚠️ I was unable to inform the user that their ticket was closed, this may be because they were banned or left the server. **This is not an error with the bot!**'
-											)
-											.setColor(ticketEmbedColor)
-									]
-								: [transcriptEmbed],
+							embeds: [transcriptEmbed],
 							components: [
 								new ActionRowBuilder<ButtonBuilder>().addComponents(
-									new ButtonBuilder()
-										.setLabel('Transcript')
-										.setEmoji('🔗')
-										.setStyle(ButtonStyle.Link)
-										.setURL(`https://storage.lavylavender.com/unify/${openTicket.channelId}.html`)
+									transcript === null
+										? new ButtonBuilder()
+												.setLabel('Unable to Save Transcript')
+												.setEmoji('⚠')
+												.setStyle(ButtonStyle.Secondary)
+												.setDisabled(true)
+												.setCustomId('button')
+										: new ButtonBuilder()
+												.setLabel('Transcript')
+												.setEmoji('🔗')
+												.setStyle(ButtonStyle.Link)
+												.setURL(`https://storage.lavylavender.com/unify/${openTicket.channelId}.html`)
 								)
 							]
 						});

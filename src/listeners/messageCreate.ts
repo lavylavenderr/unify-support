@@ -162,7 +162,7 @@ export class messageCreateEvent extends Listener {
 
 							await c.permissionOverwrites.edit('878175903895679027', { ViewChannel: true, SendMessages: true }); // Customer Service
 							await c.permissionOverwrites.edit('1289956449040076852', { ViewChannel: true, SendMessages: true }); // Department Head
-							
+
 							await c.send({
 								content: `${categoryType === 'pr' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === 'other' ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
 								embeds: [
@@ -175,7 +175,19 @@ export class messageCreateEvent extends Listener {
 											name: `${message.author.globalName} (@${message.author.username})`,
 											iconURL: message.author.avatarURL()!
 										})
-										.setFooter({ text: `User ID: ${message.author.id} • DM ID: ${message.channelId}` })
+										.setFooter({ text: `User ID: ${message.author.id} • DM ID: ${message.channelId}` }),
+									new EmbedBuilder()
+										.setColor(ticketEmbedColor)
+										.setDescription(
+											pastTickets.length > 0
+												? `This user has contacted us before, you can see all their tickets below.\n\n${pastTickets
+														.map(
+															(ticket) =>
+																`- Ticket **#${ticket.id}** - [Transcript](https://storage.lavylavender.com/unify/${ticket.channelId}.html)`
+														)
+														.join('\n')}`
+												: 'This user has not opened any previous modmail tickets.'
+										)
 								]
 							});
 
