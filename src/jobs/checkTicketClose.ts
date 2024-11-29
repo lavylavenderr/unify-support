@@ -42,6 +42,9 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 			function (_err, _data) {}
 		);
 
+		// Let the Space index the new transcript
+		await new Promise((resolve) => setTimeout(resolve, 3000));
+
 		const transcript = await s3Client
 			.send(
 				new GetObjectCommand({
