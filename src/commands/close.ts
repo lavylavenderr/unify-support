@@ -97,7 +97,6 @@ export class CloseCommand extends Command {
 								iconURL: ticketOpener.avatarURL()!
 							});
 
-						await interaction.deleteReply();
 						await message.channel!.delete();
 
 						user
