@@ -3,6 +3,7 @@ import NodeCache from 'node-cache';
 import { tickets } from '../schema/tickets';
 import { and, eq } from 'drizzle-orm';
 import { snippets } from '../schema/snippets';
+import { blocklist } from '../schema/blocklist';
 
 const cache = new NodeCache({ stdTTL: 10000 });
 
@@ -60,11 +61,22 @@ export async function getSnippetFromCache(snippet: string) {
     });
 }
 
+export async function getBlocklistStatusFromCache(userId: string) {
+    return getFromCacheOrDb(`blocklist:user:${userId}`, async () => {
+        const result = await container.db.select().from(blocklist).where(eq(blocklist.userId, userId));
+        return result[0] || null;
+    });
+}
+
 export function flushCache(idOrIdentifier?: string | number) {
     if (typeof idOrIdentifier === 'number') {
         cache.del(`ticket:id:${idOrIdentifier}`);
     } else if (typeof idOrIdentifier === 'string') {
-        cache.del(`snippet:${idOrIdentifier}`);
+        if (idOrIdentifier.startsWith('snippet:')) {
+            cache.del(`snippet:${idOrIdentifier}`);
+        } else if (idOrIdentifier.startsWith('user:')) {
+            cache.del(`blocklist:user:${idOrIdentifier}`);
+        }
     } else {
         cache.flushAll();
     }

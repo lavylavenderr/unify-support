@@ -13,11 +13,16 @@ import {
 } from 'discord.js';
 import { ticketEmbedColor, mainGuild, ticketDepartments, ticketCategory, serviceProviderRoleId, publicRelationsRoleId } from '../lib/constants';
 import { add } from 'date-fns';
-import { flushCache, getOpenTicketByChannelFromCache, getOpenTicketByUserFromCache, getSnippetFromCache } from '../lib/cache';
+import {
+	flushCache,
+	getBlocklistStatusFromCache,
+	getOpenTicketByChannelFromCache,
+	getOpenTicketByUserFromCache,
+	getSnippetFromCache
+} from '../lib/cache';
 import { and, eq } from 'drizzle-orm';
 import { snippetType } from '../schema/snippets';
 import { getUserRoleInServer } from '../lib/utils';
-
 @ApplyOptions<Listener.Options>({
 	event: Events.MessageCreate
 })
@@ -28,6 +33,20 @@ export class messageCreateEvent extends Listener {
 
 		// If is a DM message
 		if (!message.guild) {
+			const blacklistedUser = await getBlocklistStatusFromCache(message.author.id);
+
+			if (blacklistedUser) {
+				return message.reply({
+					embeds: [
+						new EmbedBuilder()
+							.setColor('Red')
+							.setDescription(
+								"Sorry, you've been blacklisted from our support system, if you feel this is a mistake, contact an executive."
+							)
+					]
+				});
+			}
+
 			const openTicket = (await getOpenTicketByUserFromCache(message.author.id)) as ticketType;
 
 			if (openTicket) {
@@ -44,7 +63,9 @@ export class messageCreateEvent extends Listener {
 									.setColor(ticketEmbedColor)
 									.setDescription(message.content ? message.content : 'No content provided.')
 									.setAuthor({
-										name: `${message.author.globalName} (@${message.author.username})`,
+										name: message.author.globalName
+											? `${message.author.globalName} (@${message.author.username})`
+											: message.author.username,
 										iconURL: message.author.avatarURL()!
 									})
 									.setFooter({ text: 'Message ID: ' + message.author.id })
@@ -87,6 +108,9 @@ export class messageCreateEvent extends Listener {
 			} else {
 				const deptPicker = new StringSelectMenuBuilder().setCustomId('deptpicker').setPlaceholder('Select a Department');
 				const guild = await this.container.client.guilds.fetch(mainGuild)!;
+				const guildMember = await guild.members.fetch(message.author.id);
+
+				if (!guildMember) return;
 
 				for (const dept of ticketDepartments) {
 					deptPicker.addOptions(
@@ -112,7 +136,7 @@ export class messageCreateEvent extends Listener {
 					.then(async (collected) => {
 						let categoryName;
 						let categoryType: 'livery' | 'threedlogo' | 'pr' | 'other' | 'uniform';
-						let userName = message.author.globalName;
+						let userName = message.author.globalName ? message.author.globalName : message.author.username;
 
 						const pastTickets = await this.container.db
 							.select()
@@ -121,7 +145,7 @@ export class messageCreateEvent extends Listener {
 
 						switch (collected.values[0]) {
 							case 'Liveries':
-								categoryName = `liv-${message.author.globalName}`;
+								categoryName = `liv-${userName}`;
 								categoryType = 'livery';
 								break;
 							case '3D Logos':
@@ -163,33 +187,46 @@ export class messageCreateEvent extends Listener {
 							await c.permissionOverwrites.edit('878175903895679027', { ViewChannel: true, SendMessages: true }); // Customer Service
 							await c.permissionOverwrites.edit('1289956449040076852', { ViewChannel: true, SendMessages: true }); // Department Head
 
-							await c.send({
-								content: `${categoryType === 'pr' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === 'other' ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
-								embeds: [
-									new EmbedBuilder()
-										.setColor(ticketEmbedColor)
-										.setDescription(
-											`Their account was created <t:${Math.floor(message.author.createdTimestamp / 1000)}:R> and they have ${pastTickets.length === 0 ? 'not opened any past tickets.' : `opened **${pastTickets.length}** ticket(s) prior to this one.`}`
-										)
-										.setAuthor({
-											name: `${message.author.globalName} (@${message.author.username})`,
-											iconURL: message.author.avatarURL()!
-										})
-										.setFooter({ text: `User ID: ${message.author.id} • DM ID: ${message.channelId}` }),
-									new EmbedBuilder()
-										.setColor(ticketEmbedColor)
-										.setDescription(
-											pastTickets.length > 0
-												? `This user has contacted us before, you can see all their tickets below.\n\n${pastTickets
-														.map(
-															(ticket) =>
-																`- Ticket **#${ticket.id}** - [Transcript](https://storage.lavylavender.com/unify/${ticket.channelId}.html)`
-														)
-														.join('\n')}`
-												: 'This user has not opened any previous modmail tickets.'
-										)
-								]
-							});
+							await c
+								.send({
+									content: `${categoryType === 'pr' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === 'other' ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
+									embeds: [
+										new EmbedBuilder()
+											.setColor(ticketEmbedColor)
+											.setDescription(
+												`Their account was created <t:${Math.floor(message.author.createdTimestamp / 1000)}:R>, they joined the server ${guildMember.joinedTimestamp ? `<t:${Math.floor(guildMember.joinedTimestamp / 1000)}:R>` : 'at an unknown date'} and they have ${pastTickets.length === 0 ? 'not opened any past tickets.' : `opened **${pastTickets.length}** ticket(s) prior to this one.`}`
+											)
+											.addFields({
+												name: 'Roles',
+												value: guildMember.roles.cache
+													.filter((role) => role.name !== '@everyone')
+													.map((role) => role.name)
+													.join(', ')
+											})
+											.setAuthor({
+												name: message.author.globalName
+													? `${message.author.globalName} (@${message.author.username})`
+													: message.author.username,
+												iconURL: message.author.avatarURL()!
+											})
+											.setFooter({ text: `User ID: ${message.author.id} • DM ID: ${message.channelId}` }),
+										new EmbedBuilder()
+											.setColor(ticketEmbedColor)
+											.setDescription(
+												pastTickets.length > 0
+													? `This user has contacted us before, you can see all their tickets below.\n\n${pastTickets
+															.map(
+																(ticket) =>
+																	`- Ticket **#${ticket.id}** - [Transcript](https://storage.lavylavender.com/unify/${ticket.channelId}.html)`
+															)
+															.join('\n')}`
+													: 'This user has not opened any previous modmail tickets.'
+											)
+									]
+								})
+								.then(async (msg) => {
+									await msg.pin();
+								});
 
 							await response.edit({
 								embeds: [
@@ -223,46 +260,61 @@ export class messageCreateEvent extends Listener {
 				const messageChannel = message.channel as GuildTextBasedChannel;
 
 				if (requestedSnippet) {
-					message.delete();
+					try {
+						const userRole = await getUserRoleInServer(message.author.id);
+						const usrMsg = await this.container.client.users.send(openTicket.authorId, {
+							embeds: [
+								new EmbedBuilder()
+									.setColor(ticketEmbedColor)
+									.setDescription(requestedSnippet.content)
+									.setAuthor({
+										name: message.author.globalName
+											? `${message.author.globalName} (@${message.author.username})`
+											: message.author.username,
+										iconURL: message.author.avatarURL()!
+									})
+									.setTimestamp()
+									.setFooter({ text: userRole })
+							]
+						});
 
-					const userRole = await getUserRoleInServer(message.author.id);
-					const usrMsg = await this.container.client.users.send(openTicket.authorId, {
-						embeds: [
-							new EmbedBuilder()
-								.setColor(ticketEmbedColor)
-								.setDescription(requestedSnippet.content)
-								.setAuthor({
-									name: `${message.author.globalName} (@${message.author.username})`,
-									iconURL: message.author.avatarURL()!
-								})
-								.setTimestamp()
-								.setFooter({ text: userRole })
-						]
-					});
+						const staffMsg = await messageChannel.send({
+							embeds: [
+								new EmbedBuilder()
+									.setColor(ticketEmbedColor)
+									.setDescription(requestedSnippet.content)
+									.setAuthor({
+										name: message.author.globalName
+											? `${message.author.globalName} (@${message.author.username})`
+											: message.author.username,
+										iconURL: message.author.avatarURL()!
+									})
+									.setTimestamp()
+									.setFooter({ text: userRole })
+							]
+						});
 
-					const staffMsg = await messageChannel.send({
-						embeds: [
-							new EmbedBuilder()
-								.setColor(ticketEmbedColor)
-								.setDescription(requestedSnippet.content)
-								.setAuthor({
-									name: `${message.author.globalName} (@${message.author.username})`,
-									iconURL: message.author.avatarURL()!
-								})
-								.setTimestamp()
-								.setFooter({ text: userRole })
-						]
-					});
-
-					await this.container.db
-						.insert(ticketMessages)
-						.values({ ticketId: openTicket.id, supportMsgId: staffMsg.id, clientMsgId: usrMsg.id });
-
-					if (requestedSnippet.identifier === 'anythingelse' || requestedSnippet.identifier === 'inactive') {
+						await message.delete();
 						await this.container.db
-							.update(tickets)
-							.set({ scheduledCloseTime: add(new Date(), { hours: 6 }) })
-							.where(eq(tickets.id, openTicket.id));
+							.insert(ticketMessages)
+							.values({ ticketId: openTicket.id, supportMsgId: staffMsg.id, clientMsgId: usrMsg.id });
+
+						if (requestedSnippet.identifier === 'anythingelse' || requestedSnippet.identifier === 'inactive') {
+							await this.container.db
+								.update(tickets)
+								.set({ scheduledCloseTime: add(new Date(), { hours: 6 }) })
+								.where(eq(tickets.id, openTicket.id));
+						}
+					} catch {
+						await message.reply({
+							embeds: [
+								new EmbedBuilder()
+									.setColor(ticketEmbedColor)
+									.setDescription(
+										'Sorry, I encountered an error while replying to the ticket. The user may have left the server or there was an issue with sending the message.'
+									)
+							]
+						});
 					}
 				}
 			}

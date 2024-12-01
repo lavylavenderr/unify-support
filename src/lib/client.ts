@@ -27,7 +27,8 @@ export class UnifyBot extends SapphireClient {
 				GatewayIntentBits.GuildMessages,
 				GatewayIntentBits.Guilds,
 				GatewayIntentBits.GuildVoiceStates,
-				GatewayIntentBits.MessageContent
+				GatewayIntentBits.MessageContent,
+				GatewayIntentBits.GuildPresences
 			],
 			partials: [Partials.Channel],
 			loadMessageCommandListeners: true
