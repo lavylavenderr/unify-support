@@ -16,7 +16,7 @@ export class UnifyBot extends SapphireClient {
 				level: LogLevel.Debug
 			},
 			shards: 'auto',
-			defaultPrefix: '.',
+			defaultPrefix: ['.', '-'],
 			intents: [
 				GatewayIntentBits.DirectMessageReactions,
 				GatewayIntentBits.DirectMessages,
