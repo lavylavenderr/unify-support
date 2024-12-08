@@ -5,7 +5,7 @@ import { EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { getOpenTicketByChannelFromCache } from '../lib/cache';
 import { ticketMessages, ticketType } from '../schema/tickets';
 import { eq } from 'drizzle-orm';
-import { getUserRoleInServer } from '../lib/utils';
+import { createErrorEmbed, getUserRoleInServer } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'edit',
@@ -23,7 +23,7 @@ export class EditCommand extends Command {
 			if (openTicket) {
 				if (!message.reference)
 					return message.reply({
-						embeds: [new EmbedBuilder().setDescription('Sorry, you must reply to a message to edit it.').setColor(ticketEmbedColor)]
+						embeds: [createErrorEmbed('Sorry, you must reply to a message to edit it.')]
 					});
 
 				const deletedMessageRecord = (
@@ -35,7 +35,7 @@ export class EditCommand extends Command {
 
 				if (!deletedMessageRecord)
 					return message.reply({
-						embeds: [new EmbedBuilder().setDescription('Sorry, I did not find that message in my database.').setColor(ticketEmbedColor)]
+						embeds: [createErrorEmbed('Sorry, I did not find that message in my database.')]
 					});
 
 				const clientDms = (await this.container.client.channels.fetch(openTicket.dmId!)) as TextChannel;
@@ -45,16 +45,12 @@ export class EditCommand extends Command {
 
 				if (clientMsg.author.id !== this.container.client.user!.id)
 					return message.reply({
-						embeds: [new EmbedBuilder().setDescription('You cannot edit a message sent by a user.').setColor(ticketEmbedColor)]
+						embeds: [createErrorEmbed('You cannot edit a message sent by a user.')]
 					});
 
 				if (!supportMsg)
 					return message.reply({
-						embeds: [
-							new EmbedBuilder()
-								.setDescription('I was unable to find the corresponding message in this channel.')
-								.setColor(ticketEmbedColor)
-						]
+						embeds: [createErrorEmbed('I was unable to find the corresponding message in this channel.')]
 					});
 
 				(await supportMsg).edit({
@@ -71,28 +67,28 @@ export class EditCommand extends Command {
 					],
 					files: Array.from(message.attachments.values())
 				});
-				(await clientMsg).edit({
-					embeds: [
-						new EmbedBuilder()
-							.setColor(ticketEmbedColor)
-							.setDescription(noPrefix ? noPrefix : '*No content*')
-							.setAuthor({
-								name: `${message.author.globalName} (@${message.author.username})`,
-								iconURL: message.author.avatarURL()!
-							})
-							.setTimestamp()
-							.setFooter({ text: `${userRole} - Edited` })
-					],
-					files: Array.from(message.attachments.values())
-				});
-				(await message).delete();
+
+				clientMsg
+					.edit({
+						embeds: [
+							new EmbedBuilder()
+								.setColor(ticketEmbedColor)
+								.setDescription(noPrefix ? noPrefix : '*No content*')
+								.setAuthor({
+									name: `${message.author.globalName} (@${message.author.username})`,
+									iconURL: message.author.avatarURL()!
+								})
+								.setTimestamp()
+								.setFooter({ text: `${userRole} - Edited` })
+						],
+						files: Array.from(message.attachments.values())
+					})
+					.then(() => {
+						message.react('✅');
+					});
 			} else {
 				message.reply({
-					embeds: [
-						new EmbedBuilder()
-							.setColor(ticketEmbedColor)
-							.setDescription("This command can't be run here, this isn't a valid modmail channel.")
-					]
+					embeds: [createErrorEmbed("This command can't be run here, this isn't a valid modmail channel.")]
 				});
 			}
 		}

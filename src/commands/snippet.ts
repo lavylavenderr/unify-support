@@ -5,6 +5,7 @@ import { mainGuild, ticketEmbedColor } from '../lib/constants';
 import { snippets } from '../schema/snippets';
 import { flushCache } from '../lib/cache';
 import { eq } from 'drizzle-orm';
+import { createErrorEmbed } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'snippets',
@@ -14,155 +15,119 @@ import { eq } from 'drizzle-orm';
 })
 export class SnippetCommand extends Command {
 	public override async messageRun(message: Message, args: Args) {
-		const sendOrAction = args.finished ? null : await args.pick('string');
-		const secondArg = args.finished ? null : await args.pick('string');
-		const thirdArg = args.finished ? null : await args.rest('string');
+		const action = args.finished ? null : await args.pick('string');
+		const snippetName = args.finished ? null : await args.pick('string');
+		const content = args.finished ? null : await args.rest('string');
 
-		if (!sendOrAction) {
+		if (!action) {
 			const allSnippets = await this.container.db.select().from(snippets);
-
 			return message.reply({
 				embeds: [
 					new EmbedBuilder()
 						.setTitle('Snippets')
 						.setColor(ticketEmbedColor)
 						.setDescription(
-							allSnippets
-								.map((snippet, index) => {
-									return `${index + 1}. ${snippet.identifier}`;
-								})
-								.join('\n') || 'No snippets exist as of right now.'
+							allSnippets.length > 0
+								? allSnippets.map((snippet, index) => `${index + 1}. ${snippet.identifier}`).join('\n')
+								: 'No snippets exist as of right now.'
 						)
 				]
 			});
-		} else {
-			const allSnippets = await this.container.db.select().from(snippets);
+		}
 
-			if (allSnippets.find((x) => x.identifier === sendOrAction)) {
-				if (!sendOrAction)
-					return message.reply({
-						embeds: [
-							new EmbedBuilder()
-								.setDescription('Sorry! In order to view a snippet, you need to actually provide the name of it.')
-								.setColor(ticketEmbedColor)
-						]
-					});
+		const allSnippets = await this.container.db.select().from(snippets);
+		const searchSnippet = (identifier: string) => allSnippets.find((x) => x.identifier === identifier);
 
-				const requestedSnippet = allSnippets.find((x) => x.identifier === sendOrAction);
-				if (!requestedSnippet)
-					return message.reply({
-						embeds: [new EmbedBuilder().setDescription('Sorry, that snippet does not exist.').setColor(ticketEmbedColor)]
-					});
+		if (action === 'view' && snippetName) {
+			const requestedSnippet = searchSnippet(snippetName);
 
+			if (!requestedSnippet) {
 				return message.reply({
-					embeds: [
-						new EmbedBuilder().setTitle(`Snippet: ${sendOrAction}`).setDescription(requestedSnippet.content).setColor(ticketEmbedColor)
-					]
+					embeds: [createErrorEmbed('Sorry, that snippet does not exist.')]
 				});
-			} else {
-				const guildMember = await (await this.container.client.guilds.fetch(mainGuild)).members.fetch(message.author.id);
-				const roleIds = ['802870322109480991', '873145273415794708', '1271081315357294593', '1289956449040076852'];
-
-				if (!guildMember.roles.cache.some((role) => roleIds.includes(role.id)))
-					return message.reply({
-						embeds: [new EmbedBuilder().setDescription('Sorry, only executives can manage snippets.').setColor(ticketEmbedColor)]
-					});
-
-				if (sendOrAction === 'add') {
-					if (!secondArg)
-						return message.reply({
-							embeds: [
-								new EmbedBuilder()
-									.setDescription('Sorry! In order to add a snippet, you need to actually provide the name of it.')
-									.setColor(ticketEmbedColor)
-							]
-						});
-
-					if (!thirdArg)
-						return message.reply({
-							embeds: [
-								new EmbedBuilder()
-									.setDescription('Sorry! In order to add a snippet, you need to actually provide the content for it.')
-									.setColor(ticketEmbedColor)
-							]
-						});
-
-					if (secondArg === 'edit' || secondArg === 'add' || secondArg === 'delete')
-						return message.reply({
-							embeds: [new EmbedBuilder().setDescription('Sorry! You cannot use that name for a snippet.').setColor(ticketEmbedColor)]
-						});
-
-					await this.container.db.insert(snippets).values({ identifier: secondArg, content: thirdArg });
-					flushCache();
-
-					return message.reply({
-						embeds: [
-							new EmbedBuilder()
-								.setDescription(`The snippet named **${secondArg}** has been created as requested.`)
-								.setColor(ticketEmbedColor)
-						]
-					});
-				} else if (sendOrAction === 'delete') {
-					if (!secondArg)
-						return message.reply({
-							embeds: [
-								new EmbedBuilder()
-									.setDescription('Sorry! In order to delete a snippet, you need to actually provide the name of it.')
-									.setColor(ticketEmbedColor)
-							]
-						});
-
-					await this.container.db.delete(snippets).where(eq(snippets.identifier, secondArg));
-					flushCache();
-
-					return message.reply({
-						embeds: [
-							new EmbedBuilder()
-								.setDescription(`The snippet named **${secondArg}** has been deleted as requested.`)
-								.setColor(ticketEmbedColor)
-						]
-					});
-				} else if (sendOrAction === 'edit') {
-					if (!secondArg)
-						return message.reply({
-							embeds: [
-								new EmbedBuilder()
-									.setDescription('Sorry! In order to edit a snippet, you need to actually provide the name of it.')
-									.setColor(ticketEmbedColor)
-							]
-						});
-
-					if (!thirdArg)
-						return message.reply({
-							embeds: [
-								new EmbedBuilder()
-									.setDescription('Sorry! In order to edit a snippet, you need to actually provide the content for it.')
-									.setColor(ticketEmbedColor)
-							]
-						});
-
-					if (secondArg === 'edit' || secondArg === 'add' || secondArg === 'delete')
-						return message.reply({
-							embeds: [new EmbedBuilder().setDescription('Sorry! You cannot use that name for a snippet.').setColor(ticketEmbedColor)]
-						});
-
-					await this.container.db
-						.update(snippets)
-						.set({ content: thirdArg })
-						.where(eq(snippets.identifier, secondArg))
-					flushCache();
-
-					return message.reply({
-						embeds: [
-							new EmbedBuilder()
-								.setDescription(`The snippet named **${secondArg}** has been updated as requested.`)
-								.setColor(ticketEmbedColor)
-						]
-					});
-				}
 			}
 
-			return;
+			return message.reply({
+				embeds: [new EmbedBuilder().setTitle(`Snippet: ${snippetName}`).setDescription(requestedSnippet.content).setColor(ticketEmbedColor)]
+			});
+		}
+
+		const guildMember = await (await this.container.client.guilds.fetch(mainGuild)).members.fetch(message.author.id);
+		const roleIds = ['802870322109480991', '873145273415794708', '1271081315357294593', '1289956449040076852'];
+		if (!guildMember.roles.cache.some((role) => roleIds.includes(role.id))) {
+			return message.reply({
+				embeds: [createErrorEmbed('Sorry, only executives can manage snippets.')]
+			});
+		}
+
+		// Validate snippet name for action
+		if (['add', 'edit', 'delete'].includes(action)) {
+			if (!snippetName) return message.reply('Sorry! You need to provide a snippet name for the ${action} action.');
+			if (['edit', 'add', 'delete'].includes(snippetName)) return message.reply('Sorry! You cannot use that name for a snippet.');
+
+			if (action === 'add' && !content) return message.reply('Sorry! You need to provide the content for the snippet.');
+			if (action === 'edit' && !content) return message.reply('Sorry! You need to provide the new content for the snippet.');
+		}
+
+		switch (action) {
+			case 'add': {
+				await this.container.db.insert(snippets).values({ identifier: snippetName!, content: content! });
+
+				flushCache();
+				return message.reply({
+					embeds: [
+						new EmbedBuilder()
+							.setDescription(`The snippet named **${snippetName}** has been created as requested.`)
+							.setColor(ticketEmbedColor)
+					]
+				});
+			}
+
+			case 'edit': {
+				const requestedSnippet = searchSnippet(snippetName!);
+
+				if (!requestedSnippet) {
+					return message.reply({
+						embeds: [createErrorEmbed('Sorry, that snippet does not exist.')]
+					});
+				}
+
+				await this.container.db.update(snippets).set({ content: content! }).where(eq(snippets.identifier, snippetName!));
+				flushCache();
+				return message.reply({
+					embeds: [
+						new EmbedBuilder()
+							.setDescription(`The snippet named **${snippetName}** has been updated as requested.`)
+							.setColor(ticketEmbedColor)
+					]
+				});
+			}
+
+			case 'delete': {
+				const requestedSnippet = searchSnippet(snippetName!);
+
+				if (!requestedSnippet) {
+					return message.reply({
+						embeds: [createErrorEmbed('Sorry, that snippet does not exist.')]
+					});
+				}
+
+				await this.container.db.delete(snippets).where(eq(snippets.identifier, snippetName!));
+
+				flushCache();
+				return message.reply({
+					embeds: [
+						new EmbedBuilder()
+							.setDescription(`The snippet named **${snippetName}** has been deleted as requested.`)
+							.setColor(ticketEmbedColor)
+					]
+				});
+			}
+
+			default:
+				return message.reply({
+					embeds: [createErrorEmbed('Invalid action. Please use one of the following: `view`, `add`, `edit`, `delete`.')]
+				});
 		}
 	}
 }

@@ -5,6 +5,7 @@ import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { tickets, ticketType } from '../schema/tickets';
 import { ticketEmbedColor, ticketTopicMsg } from '../lib/constants';
 import { eq } from 'drizzle-orm';
+import { createErrorEmbed } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'unassign',
@@ -22,7 +23,7 @@ export class UnassignCommand extends Command {
 					embeds: [new EmbedBuilder().setDescription(`This ticket hasn't been claimed.`).setColor(ticketEmbedColor)]
 				});
 
-			await this.container.db.update(tickets).set({ claimedBy: null }).where(eq(tickets.id, openTicket.id));;
+			await this.container.db.update(tickets).set({ claimedBy: null }).where(eq(tickets.id, openTicket.id));
 			flushCache();
 
 			await messageChannel.setTopic('Claimed By: Nobody | ' + ticketTopicMsg);
@@ -33,7 +34,7 @@ export class UnassignCommand extends Command {
 			});
 		} else {
 			return message.reply({
-				embeds: [new EmbedBuilder().setDescription("This isn't a modmail ticket silly, you cannot unassign this.").setColor(ticketEmbedColor)]
+				embeds: [createErrorEmbed("This isn't a modmail ticket silly, you cannot unassign this.")]
 			});
 		}
 	}

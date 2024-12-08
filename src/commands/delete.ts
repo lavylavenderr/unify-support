@@ -5,6 +5,7 @@ import { ticketCategory, ticketEmbedColor } from '../lib/constants';
 import { getOpenTicketByChannelFromCache } from '../lib/cache';
 import { ticketMessages, ticketType } from '../schema/tickets';
 import { eq } from 'drizzle-orm';
+import { createErrorEmbed } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'delete',
@@ -42,28 +43,20 @@ export class DeleteCommand extends Command {
 
 				if (clientMsg.author.id !== this.container.client.user!.id)
 					return message.reply({
-						embeds: [new EmbedBuilder().setDescription('You cannot delete a message sent by a user.').setColor(ticketEmbedColor)]
+						embeds: [createErrorEmbed('You cannot delete a message sent by a user.')]
 					});
 
 				if (!supportMsg)
 					return message.reply({
-						embeds: [
-							new EmbedBuilder()
-								.setDescription('I was unable to find the corresponding message in this channel.')
-								.setColor(ticketEmbedColor)
-						]
+						embeds: [createErrorEmbed('I was unable to find the corresponding message in this channel.')]
 					});
 
 				(await clientMsg).delete();
 				(await supportMsg).delete();
 				(await message).delete();
 			} else {
-				message.reply({
-					embeds: [
-						new EmbedBuilder()
-							.setColor(ticketEmbedColor)
-							.setDescription("This command can't be run here, this isn't a valid modmail channel.")
-					]
+				return message.reply({
+					embeds: [createErrorEmbed("This command can't be run here, this isn't a valid modmail channel.")]
 				});
 			}
 		}

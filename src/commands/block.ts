@@ -5,6 +5,7 @@ import { ticketEmbedColor } from '../lib/constants';
 import { blocklist } from '../schema/blocklist';
 import { eq } from 'drizzle-orm';
 import { flushCache } from '../lib/cache';
+import { createErrorEmbed } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'block',
@@ -18,11 +19,7 @@ export class BlockCommand extends Command {
 
 		if (!mentionedUser) {
 			return message.reply({
-				embeds: [
-					new EmbedBuilder()
-						.setDescription('Oops, you need to provide a valid user (mention or ID).')
-						.setColor(ticketEmbedColor)
-				]
+				embeds: [new EmbedBuilder().setDescription('Oops, you need to provide a valid user (mention or ID).').setColor(ticketEmbedColor)]
 			});
 		}
 
@@ -30,7 +27,7 @@ export class BlockCommand extends Command {
 
 		if (existingBlock) {
 			return message.reply({
-				embeds: [new EmbedBuilder().setDescription('This user has already been blacklisted from support.').setColor('Red')]
+				embeds: [createErrorEmbed('This user has already been blacklisted from support.')]
 			});
 		}
 

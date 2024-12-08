@@ -8,6 +8,7 @@ import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { ticketType, tickets } from '../schema/tickets';
 import { eq } from 'drizzle-orm';
+import { createErrorEmbed } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'close',
@@ -140,21 +141,18 @@ export class CloseCommand extends Command {
 						confirmMsg.delete();
 					}
 				} catch (e) {
-					console.log(e);
-					message.reply({
-						embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription('*Timed out*')],
+					return confirmMsg.edit({
+						embeds: [createErrorEmbed('Interaction timed out.')],
 						components: []
 					});
 				}
 			} else {
-				message.reply({
-					embeds: [
-						new EmbedBuilder()
-							.setColor(ticketEmbedColor)
-							.setDescription("This command can't be run here, this isn't a valid modmail channel.")
-					]
+				return message.reply({
+					embeds: [createErrorEmbed("This command can't be run here, this isn't a valid modmail channel.")]
 				});
 			}
 		}
+
+		return;
 	}
 }

@@ -5,6 +5,7 @@ import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { tickets, ticketType } from '../schema/tickets';
 import { ticketEmbedColor, ticketTopicMsg } from '../lib/constants';
 import { eq } from 'drizzle-orm';
+import { createErrorEmbed } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'claim',
@@ -19,11 +20,9 @@ export class ClaimCommand extends Command {
 			if (openTicket.claimedBy)
 				return message.reply({
 					embeds: [
-						new EmbedBuilder()
-							.setDescription(
-								`This ticket is already claimed by <@${openTicket.claimedBy}> and cannot be claimed. If you need to override this, inform an executive.`
-							)
-							.setColor(ticketEmbedColor)
+						createErrorEmbed(
+							'This ticket is already claimed by <@${openTicket.claimedBy}> and cannot be claimed. If you need to override this, inform an executive.'
+						)
 					]
 				});
 
@@ -40,7 +39,7 @@ export class ClaimCommand extends Command {
 			});
 		} else {
 			return message.reply({
-				embeds: [new EmbedBuilder().setDescription("This isn't a modmail ticket silly, you cannot claim this.").setColor(ticketEmbedColor)]
+				embeds: [createErrorEmbed("This isn't a modmail ticket silly, you cannot claim this.")]
 			});
 		}
 	}

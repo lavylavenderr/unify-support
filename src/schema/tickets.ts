@@ -7,7 +7,7 @@ export const tickets = pgTable('tickets', {
 	dmId: varchar().notNull(),
 	authorId: varchar().notNull(),
 	claimedBy: varchar(),
-	category: varchar({ enum: ['livery', 'uniform', 'threedlogo', 'pr', 'other'] }),
+	category: varchar(),
 	subscribed: text()
 		.array()
 		.notNull()

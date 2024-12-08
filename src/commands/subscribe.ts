@@ -5,6 +5,7 @@ import { ticketEmbedColor, ticketCategory } from '../lib/constants';
 import { flushCache, getOpenTicketByChannelFromCache } from '../lib/cache';
 import { tickets, ticketType } from '../schema/tickets';
 import { eq } from 'drizzle-orm';
+import { createErrorEmbed } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'subscribe',
@@ -37,12 +38,12 @@ export class SubscribeCommand extends Command {
 					});
 				} else {
 					return message.reply({
-						embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription("You're already subscribed to this ticket.")]
+						embeds: [createErrorEmbed("You're already subscribed to this ticket.")]
 					});
 				}
 			} else {
 				return message.reply({
-					embeds: [new EmbedBuilder().setColor(ticketEmbedColor).setDescription("This isn't a valid ticket, you cannot run this command.")]
+					embeds: [createErrorEmbed("This isn't a valid ticket, you cannot run this command.")]
 				});
 			}
 		}

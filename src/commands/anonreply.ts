@@ -4,6 +4,7 @@ import { EmbedBuilder, GuildTextBasedChannel, Message } from 'discord.js';
 import { ticketEmbedColor } from '../lib/constants';
 import { ticketMessages, ticketType } from '../schema/tickets';
 import { getOpenTicketByChannelFromCache } from '../lib/cache';
+import { createErrorEmbed } from '../lib/utils';
 
 @ApplyOptions<Command.Options>({
 	name: 'areply',
@@ -53,11 +54,9 @@ export class ReplyCommand extends Command {
 			} catch {
 				await message.reply({
 					embeds: [
-						new EmbedBuilder()
-							.setColor(ticketEmbedColor)
-							.setDescription(
-								'Sorry, I encountered an error while replying to the ticket. The user may have left the server or there was an issue with sending the message.'
-							)
+						createErrorEmbed(
+							'Sorry, I encountered an error while replying to the ticket. The user may have left the server or there was an issue with sending the message.'
+						)
 					]
 				});
 			}

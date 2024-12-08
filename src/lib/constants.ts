@@ -9,32 +9,61 @@ export const ticketTranscripts = '902863701953101854';
 export const ticketCategory = '802894623705137182';
 export const ticketEmbedColor = '#2b2d31';
 
+export const executiveRoleId = '873145273415794708';
 export const customerServiceRoleId = '878175903895679027';
 export const serviceProviderRoleId = '802909560393695232';
 export const departmentHeadRoleId = '1289956449040076852';
 export const publicRelationsRoleId = '1303815721003913277';
 
-export const ticketTopicMsg = 'In order to reply to the user, please do .reply <message> in order to do so.'
+export const liveryRoleId = '1315367582601183242';
+export const uniformRoleId = '1315367744098537502';
+export const threeDRoleId = '1315367694098239508';
+export const developerRoleId = '802871568878403594';
+
+export type ticketDepartmentType = 'Liveries' | '3D Logos' | 'Uniform' | 'Public Relations' | 'Development' | 'Management' | 'Other';
+export const ticketTopicMsg = 'In order to reply to the user, please do .reply <message> in order to do so.';
 export const ticketDepartments = [
 	{
 		name: 'Liveries',
-		description: 'If you wish to place a livery order.'
+		description: 'If you wish to place a livery order.',
+		allowedRoles: ['873145273415794708', '1315367582601183242', '1289956449040076852'],
+		shortCode: 'liv'
 	},
 	{
 		name: '3D Logos',
-		description: 'If you wish to place a 3D Logo order.'
+		description: 'If you wish to place a 3D Logo order.',
+		allowedRoles: ['873145273415794708', '1315367694098239508', '1289956449040076852'],
+		shortCode: 'log'
 	},
 	{
 		name: 'Uniform',
-		description: 'If you wish to place a uniform order.'
+		description: 'If you wish to place a uniform order.',
+		allowedRoles: ['873145273415794708', '1315367744098537502', '1289956449040076852'],
+		shortCode: 'uni'
 	},
 	{
 		name: 'Public Relations',
-		description: 'Please use this if you wish to partner or have a PR inquiry.'
+		description: 'Please use this if you wish to partner or have a PR inquiry.',
+		allowedRoles: ['873145273415794708', '1303815721003913277', '1289956449040076852'],
+		shortCode: 'pr'
+	},
+	{
+		name: 'Development',
+		description: 'Please select this category if you have a issue/question relating to our assets/products.',
+		allowedRoles: ['873145273415794708', '802871568878403594', '1289956449040076852'],
+		shortCode: 'dev'
+	},
+	{
+		name: 'Management',
+		description: 'Have an issue that needs direct intervention from executives? Select this option.',
+		allowedRoles: ['873145273415794708', '1289956449040076852'],
+		shortCode: 'mgmt'
 	},
 	{
 		name: 'Other',
-		description: 'Select this if your ticket does not fall into the listed categories.'
+		description: 'Select this if your ticket does not fall into the listed categories.',
+		allowedRoles: ['873145273415794708', '1289956449040076852', '878175903895679027'],
+		shortCode: 'other'
 	}
 ];
 

@@ -1,3 +1,4 @@
+import { ticketDepartments } from './../lib/constants';
 import { ticketMessages, ticketType, tickets } from './../schema/tickets';
 import { ApplyOptions } from '@sapphire/decorators';
 import { Events, Listener } from '@sapphire/framework';
@@ -11,7 +12,7 @@ import {
 	StringSelectMenuBuilder,
 	StringSelectMenuOptionBuilder
 } from 'discord.js';
-import { ticketEmbedColor, mainGuild, ticketDepartments, ticketCategory, serviceProviderRoleId, publicRelationsRoleId } from '../lib/constants';
+import { ticketEmbedColor, mainGuild, ticketCategory, ticketDepartmentType } from '../lib/constants';
 import { add } from 'date-fns';
 import {
 	flushCache,
@@ -23,6 +24,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { snippetType } from '../schema/snippets';
 import { getUserRoleInServer } from '../lib/utils';
+
 @ApplyOptions<Listener.Options>({
 	event: Events.MessageCreate
 })
@@ -74,8 +76,8 @@ export class messageCreateEvent extends Listener {
 							files: Array.from(message.attachments.values()),
 							...(openTicket!.subscribed.length > 0 && { content: openTicket!.subscribed.map((value) => `<@${value}>`).join(' ') })
 						});
-						message.react('✅');
 
+						await message.react('✅');
 						await this.container.db
 							.insert(ticketMessages)
 							.values({ ticketId: openTicket.id, supportMsgId: reply.id, clientMsgId: message.id });
@@ -92,7 +94,7 @@ export class messageCreateEvent extends Listener {
 					}
 				} else {
 					await this.container.db.update(tickets).set({ closed: true }).where(eq(tickets.id, openTicket.id));
-					flushCache(openTicket.authorId);
+					flushCache();
 
 					return message.reply({
 						allowedMentions: { repliedUser: false },
@@ -108,10 +110,6 @@ export class messageCreateEvent extends Listener {
 			} else {
 				try {
 					const deptPicker = new StringSelectMenuBuilder().setCustomId('deptpicker').setPlaceholder('Select a Department');
-					const guild = await this.container.client.guilds.fetch(mainGuild)!;
-					const guildMember = await guild.members.fetch(message.author.id);
-
-					if (!guildMember) return;
 
 					for (const dept of ticketDepartments) {
 						deptPicker.addOptions(
@@ -119,7 +117,10 @@ export class messageCreateEvent extends Listener {
 						);
 					}
 
+					const guild = await this.container.client.guilds.fetch(mainGuild)!;
+					const guildMember = await guild.members.fetch(message.author.id)!;
 					const collectorFilter = (i: any) => i.user.id === message.author.id;
+
 					const response = await message.reply({
 						allowedMentions: { repliedUser: false },
 						components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(deptPicker)],
@@ -135,112 +136,88 @@ export class messageCreateEvent extends Listener {
 					response
 						.awaitMessageComponent({ filter: collectorFilter, componentType: ComponentType.StringSelect, time: 20000 })
 						.then(async (collected) => {
-							let categoryName;
-							let categoryType: 'livery' | 'threedlogo' | 'pr' | 'other' | 'uniform';
-							let userName = message.author.globalName ? message.author.globalName : message.author.username;
+							const usrName = message.author.globalName ? message.author.globalName : message.author.username;
+							const selectedCat = collected.values[0] as ticketDepartmentType;
+							const categoryInfo = ticketDepartments.find((x) => x.name === selectedCat)!;
 
 							const pastTickets = await this.container.db
 								.select()
 								.from(tickets)
 								.where(and(eq(tickets.closed, true), eq(tickets.authorId, message.author.id)));
 
-							switch (collected.values[0]) {
-								case 'Liveries':
-									categoryName = `liv-${userName}`;
-									categoryType = 'livery';
-									break;
-								case '3D Logos':
-									categoryName = `log-${userName}`;
-									categoryType = 'threedlogo';
-									break;
-								case 'Uniform':
-									categoryName = `uni-${userName}`;
-									categoryType = 'uniform';
-									break;
-								case 'Public Relations':
-									categoryName = `pr-${userName}`;
-									categoryType = 'pr';
-									break;
-								case 'Other':
-									categoryName = `other-${userName}`;
-									categoryType = 'other';
-									break;
-							}
+							guild.channels
+								.create({
+									name: categoryInfo.shortCode + '-' + usrName,
+									topic: 'In order to reply to the user, please do .reply <message> in order to do so.',
+									parent: ticketCategory
+								})
+								.then(async (c) => {
+									await this.container.db.insert(tickets).values({
+										channelId: c.id,
+										authorId: message.author.id,
+										category: categoryInfo.shortCode,
+										dmId: message.channelId
+									});
 
-							guild.channels.create({ name: categoryName! }).then(async (c) => {
-								await c.setParent(ticketCategory);
-								await c.setTopic('In order to reply to the user, please do .reply <message> in order to do so.');
+									flushCache();
 
-								await this.container.db.insert(tickets).values({
-									channelId: c.id,
-									authorId: message.author.id,
-									category: categoryType,
-									dmId: message.channelId
-								});
-								flushCache();
+									categoryInfo.allowedRoles.forEach(async (role) => {
+										await c.permissionOverwrites.edit(role, { ViewChannel: true, SendMessages: true });
+									});
 
-								if (categoryType === 'livery' || categoryType === 'threedlogo' || categoryType === 'uniform') {
-									await c.permissionOverwrites.edit(serviceProviderRoleId, { ViewChannel: true, SendMessages: true });
-								} else if (categoryType === 'pr') {
-									await c.permissionOverwrites.edit(publicRelationsRoleId, { ViewChannel: true, SendMessages: true });
-								}
+									await c
+										.send({
+											content: categoryInfo.allowedRoles.map((role) => `<@&${role}>`).join(' '),
+											embeds: [
+												new EmbedBuilder()
+													.setColor(ticketEmbedColor)
+													.setDescription(
+														`Their account was created <t:${Math.floor(message.author.createdTimestamp / 1000)}:R>, they joined the server ${guildMember.joinedTimestamp ? `<t:${Math.floor(guildMember.joinedTimestamp / 1000)}:R>` : 'at an unknown date'} and they have ${pastTickets.length === 0 ? 'not opened any past tickets.' : `opened **${pastTickets.length}** ticket(s) prior to this one.`}`
+													)
+													.addFields({
+														name: 'Roles',
+														value:
+															guildMember.roles.cache
+																.filter((role) => role.name !== '@everyone')
+																.map((role) => role.name)
+																.join(', ') || 'User has no roles.'
+													})
+													.setAuthor({
+														name: message.author.globalName
+															? `${message.author.globalName} (@${message.author.username})`
+															: message.author.username,
+														iconURL: message.author.avatarURL()!
+													})
+													.setFooter({ text: `User ID: ${message.author.id} • DM ID: ${message.channelId}` }),
+												new EmbedBuilder()
+													.setColor(ticketEmbedColor)
+													.setDescription(
+														pastTickets.length > 0
+															? `This user has contacted us before, you can see all their tickets below.\n\n${pastTickets
+																	.map(
+																		(ticket) =>
+																			`- Ticket **#${ticket.id}** - [Transcript](https://storage.lavylavender.com/unify/${ticket.channelId}.html)`
+																	)
+																	.join('\n')}`
+															: 'This user has not opened any previous modmail tickets.'
+													)
+											]
+										})
+										.then(async (msg) => {
+											await msg.pin();
+										});
 
-								await c.permissionOverwrites.edit('878175903895679027', { ViewChannel: true, SendMessages: true }); // Customer Service
-								await c.permissionOverwrites.edit('1289956449040076852', { ViewChannel: true, SendMessages: true }); // Department Head
-
-								await c
-									.send({
-										content: `${categoryType === 'pr' ? '<@&1303815721003913277> <@&878175903895679027>' : categoryType === 'other' ? '<@&878175903895679027>' : '<@&802909560393695232> <@&878175903895679027>'}`,
+									await response.edit({
 										embeds: [
 											new EmbedBuilder()
 												.setColor(ticketEmbedColor)
 												.setDescription(
-													`Their account was created <t:${Math.floor(message.author.createdTimestamp / 1000)}:R>, they joined the server ${guildMember.joinedTimestamp ? `<t:${Math.floor(guildMember.joinedTimestamp / 1000)}:R>` : 'at an unknown date'} and they have ${pastTickets.length === 0 ? 'not opened any past tickets.' : `opened **${pastTickets.length}** ticket(s) prior to this one.`}`
+													'Your ticket has been created. Please make sure to describe your inquiry in full detail in order to provide the responding member with as much info as possible.'
 												)
-												.addFields({
-													name: 'Roles',
-													value:
-														guildMember.roles.cache
-															.filter((role) => role.name !== '@everyone')
-															.map((role) => role.name)
-															.join(', ') || 'User has no roles.'
-												})
-												.setAuthor({
-													name: message.author.globalName
-														? `${message.author.globalName} (@${message.author.username})`
-														: message.author.username,
-													iconURL: message.author.avatarURL()!
-												})
-												.setFooter({ text: `User ID: ${message.author.id} • DM ID: ${message.channelId}` }),
-											new EmbedBuilder()
-												.setColor(ticketEmbedColor)
-												.setDescription(
-													pastTickets.length > 0
-														? `This user has contacted us before, you can see all their tickets below.\n\n${pastTickets
-																.map(
-																	(ticket) =>
-																		`- Ticket **#${ticket.id}** - [Transcript](https://storage.lavylavender.com/unify/${ticket.channelId}.html)`
-																)
-																.join('\n')}`
-														: 'This user has not opened any previous modmail tickets.'
-												)
-										]
-									})
-									.then(async (msg) => {
-										await msg.pin();
+										],
+										components: []
 									});
-
-								await response.edit({
-									embeds: [
-										new EmbedBuilder()
-											.setColor(ticketEmbedColor)
-											.setDescription(
-												'Your ticket has been created. Please make sure to describe your inquiry in full detail in order to provide the responding member with as much info as possible.'
-											)
-									],
-									components: []
 								});
-							});
 						})
 						.catch(() => {
 							response.edit({
