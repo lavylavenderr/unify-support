@@ -199,10 +199,11 @@ export class messageCreateEvent extends Listener {
 												)
 												.addFields({
 													name: 'Roles',
-													value: guildMember.roles.cache
-														.filter((role) => role.name !== '@everyone')
-														.map((role) => role.name)
-														.join(', ')
+													value:
+														guildMember.roles.cache
+															.filter((role) => role.name !== '@everyone')
+															.map((role) => role.name)
+															.join(', ') || 'User has no roles.'
 												})
 												.setAuthor({
 													name: message.author.globalName
