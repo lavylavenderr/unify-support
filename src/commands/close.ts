@@ -52,7 +52,7 @@ export class CloseCommand extends Command {
 
 						await s3Client.send(
 							new PutObjectCommand({
-								Bucket: 'foxxymaple',
+								Bucket: 'unify',
 								Key: `${openTicket.channelId}.html`,
 								Body: attachmentBuffer,
 								ACL: 'public-read',
@@ -67,8 +67,8 @@ export class CloseCommand extends Command {
 						const transcript = await s3Client
 							.send(
 								new GetObjectCommand({
-									Bucket: 'foxxymaple',
-									Key: `unify/${openTicket.channelId}.html`
+									Bucket: 'unify',
+									Key: `${openTicket.channelId}.html`
 								})
 							)
 							.catch(() => null);
@@ -129,7 +129,7 @@ export class CloseCommand extends Command {
 												.setLabel('Transcript')
 												.setEmoji('🔗')
 												.setStyle(ButtonStyle.Link)
-												.setURL(`https://storage.lavylavender.com/unify/${openTicket.channelId}.html`)
+												.setURL(`https://unify.fluffiest.dev/${openTicket.channelId}.html`)
 								)
 							]
 						});
