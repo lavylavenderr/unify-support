@@ -107,7 +107,7 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 								.setLabel('Transcript')
 								.setEmoji('🔗')
 								.setStyle(ButtonStyle.Link)
-								.setURL(`https://storage.lavylavender.com/unify/${ticket.channelId}.html`)
+								.setURL(`https://unify.fluffiest.dev/${ticket.channelId}.html`)
 				)
 			]
 		});
