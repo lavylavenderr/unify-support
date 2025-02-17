@@ -33,8 +33,8 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 
 		await s3Client.send(
 			new PutObjectCommand({
-				Bucket: 'foxxymaple',
-				Key: `unify/${ticket.channelId}.html`,
+				Bucket: 'unify',
+				Key: `${ticket.channelId}.html`,
 				Body: attachmentBuffer,
 				ACL: 'public-read',
 				ContentType: 'text/html; charset=utf-8'
@@ -48,8 +48,8 @@ cronitor.schedule('UnifyCheckTicketClose', '* * * * *', async () => {
 		const transcript = await s3Client
 			.send(
 				new GetObjectCommand({
-					Bucket: 'foxxymaple',
-					Key: `unify/${ticket.channelId}.html`
+					Bucket: 'unify',
+					Key: `${ticket.channelId}.html`
 				})
 			)
 			.catch(() => null);
