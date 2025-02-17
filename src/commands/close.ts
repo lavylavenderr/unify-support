@@ -53,7 +53,7 @@ export class CloseCommand extends Command {
 						await s3Client.send(
 							new PutObjectCommand({
 								Bucket: 'foxxymaple',
-								Key: `unify/${openTicket.channelId}.html`,
+								Key: `${openTicket.channelId}.html`,
 								Body: attachmentBuffer,
 								ACL: 'public-read',
 								ContentType: 'text/html; charset=utf-8'
