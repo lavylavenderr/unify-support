@@ -3,13 +3,18 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Client, GatewayIntentBits, Partials } from "discord.js";
 import pino from "pino";
 import events from "./events"; // Assuming you have a custom events module
+import { Pool } from "pg";
 
 export const baseLogger = pino({
   level: "debug",
 });
 
 export const dragonfly = new RedisCache(Bun.env.DRAGONFLY_URL);
-export const db = drizzle(Bun.env.DATABASE_URL);
+export const db = drizzle(
+  new Pool({
+    connectionString: Bun.env.DATABASE_URL,
+  })
+);
 export const client =
   globalThis.hot_client ??
   new Client({
@@ -25,7 +30,7 @@ export const client =
       GatewayIntentBits.MessageContent,
       GatewayIntentBits.GuildPresences,
     ],
-    partials: [Partials.Channel]
+    partials: [Partials.Channel],
   });
 
 client.removeAllListeners();

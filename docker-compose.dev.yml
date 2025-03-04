@@ -1,0 +1,53 @@
+name: unify
+services:
+  dragonfly:
+    container_name: dragonfly
+    image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
+    restart: unless-stopped
+    networks:
+      - intranet
+    ulimits:
+      memlock: -1
+    volumes:
+      - dragonflydata:/data
+    ports:
+      - "6379:6379"
+
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    restart: unless-stopped
+    networks:
+      - intranet
+    environment:
+      - POSTGRES_PASSWORD=ThisIsDevelopmentUseOnly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bot
+    environment:
+      - DRAGONFLY_URL=redis://dragonfly:6379/0
+      - DATABASE_URL=postgres://postgres:ThisIsDevelopmentUseOnly@postgres:5432/postgres
+    networks:
+      - intranet
+    env_file:
+      - .env.development
+    command: >
+      sh -c "bun drizzle:migrate && bun run src/index.ts"
+    depends_on:
+      - postgres
+      - dragonfly
+
+volumes:
+  dragonflydata:
+  pgdata:
+
+networks:
+  intranet:
+    driver: bridge
