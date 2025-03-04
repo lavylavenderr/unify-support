@@ -1,0 +1,27 @@
+{
+  "name": "unify-support",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/cronitor": "^2.3.0",
+    "@types/luxon": "^3.4.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "studio": "bunx drizzle-kit studio",
+    "drizzle:migrate": "bunx drizzle-kit push"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "cronitor": "^2.4.1",
+    "discord.js": "^14.18.0",
+    "drizzle-kit": "^0.30.5",
+    "drizzle-orm": "^0.40.0",
+    "ioredis": "^5.5.0",
+    "luxon": "^3.5.0",
+    "pg": "^8.13.3"
+  }
+}
