@@ -46,60 +46,40 @@ export const ticketDepartments = [
   {
     name: "3D Logos",
     description: "If you wish to place a 3D Logo order.",
-    allowedRoles: [
-      "873145273415794708",
-      "1315367694098239508",
-      "1289956449040076852",
-    ],
+    allowedRoles: [ServiceRoles.Logos, Roles.Executive],
     shortCode: "log",
   },
   {
     name: "Uniform",
     description: "If you wish to place a uniform order.",
-    allowedRoles: [
-      "873145273415794708",
-      "1315367744098537502",
-      "1289956449040076852",
-    ],
+    allowedRoles: [ServiceRoles.Uniform, Roles.Executive],
     shortCode: "uni",
   },
   {
     name: "Public Relations",
     description: "Please use this if you wish to partner or have a PR inquiry.",
-    allowedRoles: [
-      "873145273415794708",
-      "1303815721003913277",
-      "1289956449040076852",
-    ],
+    allowedRoles: [Roles.PublicRelations, Roles.Executive],
     shortCode: "pr",
   },
   {
     name: "Development",
     description:
       "Please select this category if you have a issue/question relating to our assets/products.",
-    allowedRoles: [
-      "873145273415794708",
-      "802871568878403594",
-      "1289956449040076852",
-    ],
+    allowedRoles: [ServiceRoles.Developers, Roles.Executive],
     shortCode: "dev",
   },
   {
     name: "Management",
     description:
       "Have an issue that needs direct intervention from executives? Select this option.",
-    allowedRoles: ["873145273415794708", "1289956449040076852"],
+    allowedRoles: [],
     shortCode: "mgmt",
   },
   {
     name: "Other",
     description:
       "Select this if your ticket does not fall into the listed categories.",
-    allowedRoles: [
-      "873145273415794708",
-      "1289956449040076852",
-      "878175903895679027",
-    ],
+    allowedRoles: [Roles.CustomerSupport, Roles.Executive],
     shortCode: "other",
   },
 ];

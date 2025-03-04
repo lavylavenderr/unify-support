@@ -30,11 +30,11 @@ import {
 export default onEvent(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
 
-  if (message.channel.type === ChannelType.DM) {
+  if (!message.guild) {
     const currentTicket = await fetchTicketByAuthor(message.author.id);
-    const ticketChannel = (await client.channels.fetch(
-      currentTicket?.channelId || "1"
-    )) as TextChannel;
+    const ticketChannel = (await client.channels
+      .fetch(currentTicket?.channelId || "1")
+      .catch(() => undefined)) as TextChannel | undefined;
 
     if (currentTicket) {
       if (!ticketChannel) {
@@ -96,7 +96,9 @@ export default onEvent(Events.MessageCreate, async (message) => {
             supportMsgId: reply.id,
             clientMsgId: message.id,
           });
-        } catch (err) {}
+        } catch (err) {
+          console.log(err);
+        }
       }
     } else {
       try {
@@ -173,20 +175,22 @@ export default onEvent(Events.MessageCreate, async (message) => {
 
             guild.channels
               .create({
-                name: categoryInfo.name + "-" + usrName,
+                name: categoryInfo.shortCode + "-" + usrName,
                 type: ChannelType.GuildText,
                 parent: ImportantIds.TICKET_CATEGORY,
               })
               .then(async (c) => {
-                await Promise.all([
-                  db.insert(tickets).values({
-                    channelId: c.id,
-                    authorId: message.author.id,
-                    category: categoryInfo.shortCode,
-                    dmId: message.channelId,
-                  }),
-                  createNewCachedTicket(message.author.id, c.id),
-                ]);
+                // THE BELOW MUST GO IN THIS EXACT ORDER TO MAKE SURE IT ACTUALLY CACHES OH MY FUCKING GOD
+
+                await db.insert(tickets).values({
+                  channelId: c.id,
+                  authorId: message.author.id,
+                  category: categoryInfo.shortCode,
+                  dmId: message.channelId,
+                });
+                await createNewCachedTicket(message.author.id, c.id);
+
+                // PAIN AND SUFFERING ABOVE
 
                 for (const allowedRole of categoryInfo.allowedRoles) {
                   await c.permissionOverwrites.create(allowedRole, {

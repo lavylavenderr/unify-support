@@ -63,7 +63,8 @@ export default new TextCommand(schema, async (message, args) => {
         supportMsgId: staffMsg.id,
         clientMsgId: usrMsg.id,
       });
-    } catch {
+    } catch (err) {
+      console.log(err)
       return message.reply({
         embeds: [
           returnErrorEmbed(

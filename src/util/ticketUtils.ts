@@ -52,7 +52,7 @@ export const fetchTicketByAuthor = async (
   const existsInRedis = await dragonfly.exists("ticket:author:" + authorId);
   const ticketData = existsInRedis
     ? ((await dragonfly.get("ticket:author:" + authorId)) as ticketType)
-    : await fetchTicketFromDatabase(authorId);
+    : await fetchTicketFromDatabase(undefined, authorId);
 
   return ticketData;
 };
@@ -63,7 +63,7 @@ export const createNewCachedTicket = async (
   authorId: string,
   channelId: string
 ): Promise<boolean> => {
-  const ticketData = await fetchTicketFromDatabase(authorId!)!;
+  const ticketData = await fetchTicketFromDatabase(undefined, authorId!)!;
 
   await Promise.all([
     dragonfly.set("ticket:id:" + channelId, ticketData, 3600),
@@ -82,6 +82,21 @@ export const closeCachedTicket = async (
   await Promise.all([
     dragonfly.delete("ticket:id:" + channelId),
     dragonfly.delete("ticket:author:" + authorId),
+  ]);
+
+  return true;
+};
+
+// Refresh Ticket
+
+export const refreshCachedTicket = async (
+  channelId: string
+): Promise<boolean> => {
+  const ticketData = await fetchTicketFromDatabase(channelId);
+
+  await Promise.all([
+    dragonfly.set("ticket:id:" + channelId, ticketData, 3600),
+    dragonfly.set("ticket:author:" + ticketData.authorId, ticketData, 3600),
   ]);
 
   return true;
