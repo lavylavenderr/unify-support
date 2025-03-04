@@ -1,4 +1,7 @@
+import type { Client } from "discord.js";
+
 declare global {
+  var hot_client: Client<true> | null;
   namespace NodeJS {
     interface ProcessEnv {
       CRONITOR_KEY: string;

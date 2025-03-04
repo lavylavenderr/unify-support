@@ -1,5 +1,8 @@
+import { ImportantIds } from "@constants";
+import { EmbedBuilder } from "@discordjs/builders";
+import { Colors } from "discord.js";
 import { and, eq } from "drizzle-orm";
-import { db, dragonfly } from "index";
+import { client, db, dragonfly } from "index";
 import { tickets, type ticketType } from "schema/tickets";
 
 // Existing Tickets
@@ -82,4 +85,18 @@ export const closeCachedTicket = async (
   ]);
 
   return true;
+};
+
+// Misc Utils
+
+export const getHighestRole = async (userId: string) => {
+  const unifyGuild = await client.guilds.fetch(ImportantIds.MAIN_GUILD);
+  const guildMember = await unifyGuild.members.fetch(userId!);
+  const topRole = guildMember.roles.highest;
+
+  return topRole.name || "Member";
+};
+
+export const returnErrorEmbed = (message: string) => {
+  return new EmbedBuilder().setColor(Colors.Red).setDescription(message);
 };
