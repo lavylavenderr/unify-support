@@ -27,6 +27,8 @@ services:
       - intranet
     env_file:
       - stack.env
+    command: >
+      sh -c "pnpm run drizzle:migrate && pnpm run start"
     depends_on:
       - postgres
 
