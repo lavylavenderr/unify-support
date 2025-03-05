@@ -8,4 +8,6 @@ RUN pnpm install --no-frozen-lockfile
 COPY . .
 
 RUN pnpm run build
+
+ENV NODE_ENV=production
 ENTRYPOINT ["pnpm", "run", "start"]
