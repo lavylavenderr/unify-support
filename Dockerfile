@@ -9,5 +9,3 @@ COPY . .
 
 RUN pnpm run build
 ENV NODE_ENV=production
-
-CMD sh -c "pnpm run drizzle:migrate && pnpm run start"
