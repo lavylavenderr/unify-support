@@ -129,7 +129,7 @@ export class CloseCommand extends Command {
 												.setLabel('Transcript')
 												.setEmoji('🔗')
 												.setStyle(ButtonStyle.Link)
-												.setURL(`https://unify.fluffiest.dev/${openTicket.channelId}.html`)
+												.setURL(`https://unify.lavylavender.com/${openTicket.channelId}.html`)
 								)
 							]
 						});
