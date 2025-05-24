@@ -28,6 +28,7 @@ import { getUserRoleInServer } from '../lib/utils';
 	event: Events.MessageCreate
 })
 export class messageCreateEvent extends Listener {
+	// @ts-expect-error
 	public override async run(message: Message) {
 		if (message.author.id === this.container.client.id) return;
 
