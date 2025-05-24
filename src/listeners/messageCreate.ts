@@ -16,7 +16,6 @@ import { ticketEmbedColor, mainGuild, ticketCategory, ticketDepartmentType } fro
 import { add } from 'date-fns';
 import {
 	flushCache,
-	getBlocklistStatusFromCache,
 	getOpenTicketByChannelFromCache,
 	getOpenTicketByUserFromCache,
 	getSnippetFromCache
@@ -29,26 +28,11 @@ import { getUserRoleInServer } from '../lib/utils';
 	event: Events.MessageCreate
 })
 export class messageCreateEvent extends Listener {
-	// @ts-expect-error
 	public override async run(message: Message) {
 		if (message.author.id === this.container.client.id) return;
 
 		// If is a DM message
 		if (!message.guild) {
-			const blacklistedUser = await getBlocklistStatusFromCache(message.author.id);
-
-			if (blacklistedUser) {
-				return message.reply({
-					embeds: [
-						new EmbedBuilder()
-							.setColor('Red')
-							.setDescription(
-								"Sorry, you've been blacklisted from our support system, if you feel this is a mistake, contact an executive."
-							)
-					]
-				});
-			}
-
 			const openTicket = (await getOpenTicketByUserFromCache(message.author.id)) as ticketType;
 
 			if (openTicket) {
