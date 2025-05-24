@@ -30,12 +30,6 @@ export const ticketDepartments = [
 		shortCode: 'liv'
 	},
 	{
-		name: '3D Logos',
-		description: 'If you wish to place a 3D Logo order.',
-		allowedRoles: ['873145273415794708', '1315367694098239508', '1289956449040076852'],
-		shortCode: 'log'
-	},
-	{
 		name: 'Uniform',
 		description: 'If you wish to place a uniform order.',
 		allowedRoles: ['873145273415794708', '1315367744098537502', '1289956449040076852'],
